@@ -9,14 +9,25 @@ const hasUsableApiKey =
   configuredApiKey.startsWith("AIza") &&
   configuredApiKey.length >= 30;
 
-const firebaseConfig: FirebaseOptions = {
-  apiKey: configuredApiKey as string,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+const fallbackFirebaseConfig: FirebaseOptions = {
+  apiKey: "AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  authDomain: "demo.invalid",
+  projectId: "demo-preview",
+  storageBucket: "demo-preview.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:0000000000000000000000",
 };
+
+const firebaseConfig: FirebaseOptions = hasUsableApiKey
+  ? {
+      apiKey: configuredApiKey,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    }
+  : fallbackFirebaseConfig;
 
 const appName = "upskill-school-ui";
 const app = getApps().some((firebaseApp) => firebaseApp.name === appName)
