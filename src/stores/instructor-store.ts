@@ -27,7 +27,8 @@ import {
   usersCollection,
   announcementsCollection,
   assignmentsCollection,
-  submissionsCollection
+  submissionsCollection,
+  timetableCollection
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
@@ -48,7 +49,7 @@ type InstructorState = {
   deleteCourse: (id: string) => void;
   updateCourse: (id: string, patch: Partial<InstructorCourse>) => void;
   updateProfile: (patch: Partial<Profile>) => void;
-  addSchedule: (session: Omit<ScheduleSession, "id">) => void;
+  addSchedule: (session: Omit<ScheduleSession, "id">) => Promise<void>;
   postAnnouncement: (announcement: Omit<Announcement, "id" | "date">) => Promise<void>;
   addAssignment: (assignment: Omit<InstructorAssignment, "id" | "submissions" | "graded" | "totalStudents">) => Promise<void>;
   deleteAssignment: (id: string) => Promise<void>;
@@ -90,13 +91,23 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       courses: state.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     })),
   updateProfile: (patch) => set((state) => ({ profile: { ...state.profile, ...patch } })),
-  addSchedule: (session) =>
-    set((state) => ({
-      schedules: [
-        { ...session, id: `sess${Date.now()}` },
-        ...state.schedules,
-      ],
-    })),
+  addSchedule: async (session: any) => {
+    const instructorId = get().profile.id;
+    const program = get().courses.find(c => c.id === session.courseId);
+    await addDoc(timetableCollection, {
+      title: session.title,
+      programId: session.courseId,
+      programName: program?.title || "",
+      instructorId,
+      instructorName: get().profile.displayName || "",
+      date: session.date,
+      day: session.date ? new Date(session.date).toLocaleDateString("en-US", { weekday: "long" }) : "",
+      startTime: session.time,
+      endTime: session.time,
+      type: session.type,
+      location: session.location,
+    } as any);
+  },
   postAnnouncement: async (announcement) => {
     const instructorId = get().profile.id;
     await addDoc(announcementsCollection, {
@@ -214,6 +225,24 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
           id: d.id,
           submittedAt: (d.data().submittedAt as any)?.toDate?.().toLocaleDateString() || d.data().submittedAt
         } as any)) 
+      });
+    }));
+
+    // 7. Sync Timetable (sessions admin scheduled for this instructor)
+    unsubs.push(onSnapshot(query(timetableCollection, where("instructorId", "==", instructorId)), (snap) => {
+      set({
+        schedules: snap.docs.map(d => {
+          const data: any = d.data();
+          return {
+            id: d.id,
+            title: data.title || "Untitled Session",
+            courseId: data.programId || "",
+            date: data.date || data.day || "",
+            time: `${data.startTime || ""}${data.endTime ? " - " + data.endTime : ""}`,
+            type: data.type === "virtual" ? "virtual" : "physical",
+            location: data.location || "",
+          } as any;
+        })
       });
     }));
 

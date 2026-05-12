@@ -36,3 +36,5 @@ export const announcementsCollection = createCollection<Announcement>("announcem
 export const studentsCollection = createCollection<any>("students");
 export const instructorsCollection = createCollection<any>("instructors");
 export const submissionsCollection = createCollection<any>("submissions");
+export const cohortsCollection = createCollection<any>("cohorts");
+export const timetableCollection = createCollection<any>("timetable");
