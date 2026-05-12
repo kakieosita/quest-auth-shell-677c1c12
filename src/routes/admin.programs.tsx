@@ -26,8 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { usersCollection, programsCollection } from "@/lib/db/collections";
-import { onSnapshot, query, orderBy, where, addDoc, updateDoc, doc, Timestamp } from "firebase/firestore";
+import { usersCollection, programsCollection, cohortsCollection, timetableCollection } from "@/lib/db/collections";
+import { onSnapshot, query, orderBy, where, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { Program, User } from "@/lib/db/schema";
 import { toast } from "sonner";
