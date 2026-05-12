@@ -451,13 +451,11 @@ function AdminPrograms() {
                             input.onchange = async (e: any) => {
                                const file = e.target.files?.[0];
                                if (!file) return;
-                               const tid = toast.loading("Uploading materials...");
-                               try {
-                                  const sRef = ref(storage, `materials/${program.id}/${file.name}`);
-                                  await uploadBytes(sRef, file);
-                                  const url = await getDownloadURL(sRef);
-                                  await updateDoc(doc(programsCollection, program.id!), { materialsUrl: url });
-                                  toast.success("Materials uploaded!", { id: tid });
+                                const tid = toast.loading("Uploading materials...");
+                                try {
+                                   const url = await uploadToCloudinary(file, { folder: `materials/${program.id}` });
+                                   await updateDoc(doc(programsCollection, program.id!), { materialsUrl: url });
+                                   toast.success("Materials uploaded!", { id: tid });
                                } catch (err) {
                                   toast.error("Upload failed", { id: tid });
                                }
