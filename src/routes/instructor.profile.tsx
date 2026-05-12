@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Mail, MapPin, Phone, Briefcase, Award, ExternalLink, Plus, Banknote, Download, FileText, ChevronRight } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { toast } from "sonner";
@@ -20,7 +20,14 @@ function ProfilePage() {
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdMsg, setPwdMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const initials = profile.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
+  useEffect(() => {
+    setForm(profile);
+  }, [profile]);
+
+  const profileName = profile.displayName || profile.email || "Instructor";
+  const profileTitle = profile.role === "instructor" ? "Instructor" : "Team member";
+  const joinedAt = profile.joinedAt?.toDate?.().toLocaleDateString() || profile.createdAt?.toDate?.().toLocaleDateString() || "recently";
+  const initials = profileName.split(" ").map((part) => part[0]).slice(0, 2).join("");
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,13 +73,13 @@ function ProfilePage() {
                 {initials}
               </div>
               <div className="flex-1">
-                <h2 className="font-display text-xl font-bold">{profile.name}</h2>
-                <p className="text-sm text-muted-foreground">{profile.title}</p>
+                <h2 className="font-display text-xl font-bold">{profileName}</h2>
+                <p className="text-sm text-muted-foreground">{profileTitle}</p>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground font-medium">
                   <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-primary" /> {profile.email}</span>
                   <span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-primary" /> {profile.phone}</span>
                   <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-primary" /> {profile.location}</span>
-                  <span className="inline-flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-primary" /> Joined {profile.joinedAt}</span>
+                  <span className="inline-flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-primary" /> Joined {joinedAt}</span>
                 </div>
               </div>
             </div>
@@ -86,16 +93,16 @@ function ProfilePage() {
                   <div>
                     <label className="mb-1 block text-xs font-semibold">Full name</label>
                     <input
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      value={form.displayName || ""}
+                      onChange={(e) => setForm({ ...form, displayName: e.target.value })}
                       className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold">Title</label>
                     <input
-                      value={form.title}
-                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                      value={profileTitle}
+                      readOnly
                       className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                     />
                   </div>
