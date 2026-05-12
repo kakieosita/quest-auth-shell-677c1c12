@@ -28,7 +28,7 @@ import { db, secondaryAuth } from "@/lib/firebase";
 import { usersCollection } from "@/lib/db/collections";
 import { onSnapshot, doc, setDoc, deleteDoc, updateDoc, Timestamp, query, orderBy, addDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { User, UserRole } from "@/lib/db/schema";
 import { toast } from "sonner";
 import { authApi } from "@/lib/auth-api";
