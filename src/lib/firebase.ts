@@ -10,7 +10,7 @@ const hasUsableApiKey =
   configuredApiKey.length >= 30;
 
 const fallbackFirebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyDemoOnlyKeyForPreviewSafety123",
+  apiKey: "AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
   authDomain: "demo.invalid",
   projectId: "demo-preview",
   storageBucket: "demo-preview.appspot.com",
