@@ -149,6 +149,76 @@ function AdminPrograms() {
     }
   };
 
+  const handleCreateCohort = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const program = programs.find(p => p.id === cohortForm.programId);
+      const instructor = instructors.find(i => i.id === cohortForm.instructorId);
+      await addDoc(cohortsCollection, {
+        ...cohortForm,
+        studentCount: Number(cohortForm.studentCount) || 0,
+        programName: program?.title || "",
+        instructorName: instructor?.displayName || "",
+        createdAt: Timestamp.now(),
+      });
+      toast.success("Cohort created");
+      setIsCohortModalOpen(false);
+      setCohortForm({ name: "", programId: "", instructorId: "", startDate: "", endDate: "", studentCount: 0, status: "upcoming" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to create cohort");
+    }
+  };
+
+  const handleDeleteCohort = async (id: string) => {
+    if (!window.confirm("Delete this cohort?")) return;
+    try {
+      await deleteDoc(doc(cohortsCollection, id));
+      toast.success("Cohort deleted");
+    } catch {
+      toast.error("Failed to delete cohort");
+    }
+  };
+
+  const handleCreateSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const program = programs.find(p => p.id === slotForm.programId);
+      const instructor = instructors.find(i => i.id === slotForm.instructorId);
+      const cohort = cohorts.find(c => c.id === slotForm.cohortId);
+      if (!instructor) {
+        toast.error("Please select an instructor");
+        return;
+      }
+      await addDoc(timetableCollection, {
+        ...slotForm,
+        instructorName: instructor.displayName || "",
+        programName: program?.title || "",
+        cohortName: cohort?.name || "",
+        createdAt: Timestamp.now(),
+      });
+      toast.success("Timetable slot added");
+      setIsSlotModalOpen(false);
+      setSlotForm({
+        title: "", cohortId: "", instructorId: "", programId: "",
+        day: "Monday", date: new Date().toISOString().split("T")[0],
+        startTime: "09:00", endTime: "11:00", type: "physical", location: "",
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add slot");
+    }
+  };
+
+  const handleDeleteSlot = async (id: string) => {
+    try {
+      await deleteDoc(doc(timetableCollection, id));
+      toast.success("Slot removed");
+    } catch {
+      toast.error("Failed to remove slot");
+    }
+  };
+
 
   useEffect(() => {
     // Sync programs
