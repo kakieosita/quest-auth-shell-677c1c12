@@ -28,8 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { usersCollection, programsCollection } from "@/lib/db/collections";
 import { onSnapshot, query, orderBy, where, addDoc, updateDoc, doc, Timestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { Program, User } from "@/lib/db/schema";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -452,13 +451,11 @@ function AdminPrograms() {
                             input.onchange = async (e: any) => {
                                const file = e.target.files?.[0];
                                if (!file) return;
-                               const tid = toast.loading("Uploading materials...");
-                               try {
-                                  const sRef = ref(storage, `materials/${program.id}/${file.name}`);
-                                  await uploadBytes(sRef, file);
-                                  const url = await getDownloadURL(sRef);
-                                  await updateDoc(doc(programsCollection, program.id!), { materialsUrl: url });
-                                  toast.success("Materials uploaded!", { id: tid });
+                                const tid = toast.loading("Uploading materials...");
+                                try {
+                                   const url = await uploadToCloudinary(file, { folder: `materials/${program.id}` });
+                                   await updateDoc(doc(programsCollection, program.id!), { materialsUrl: url });
+                                   toast.success("Materials uploaded!", { id: tid });
                                } catch (err) {
                                   toast.error("Upload failed", { id: tid });
                                }

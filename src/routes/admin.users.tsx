@@ -24,11 +24,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Papa from "papaparse";
-import { db, secondaryAuth, storage } from "@/lib/firebase";
+import { db, secondaryAuth } from "@/lib/firebase";
 import { usersCollection } from "@/lib/db/collections";
 import { onSnapshot, doc, setDoc, deleteDoc, updateDoc, Timestamp, query, orderBy, addDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { User, UserRole } from "@/lib/db/schema";
 import { toast } from "sonner";
 import { authApi } from "@/lib/auth-api";
@@ -127,9 +127,7 @@ function AdminUsers() {
       if (formData.role === "instructor" && contractFile) {
         console.log("Uploading contract...");
         try {
-          const storageRef = ref(storage, `contracts/${uid}/${contractFile.name}`);
-          await uploadBytes(storageRef, contractFile);
-          const contractUrl = await getDownloadURL(storageRef);
+          const contractUrl = await uploadToCloudinary(contractFile, { folder: `contracts/${uid}` });
           
           // Update the document with the contract URL
           await updateDoc(doc(usersCollection, uid), { contractUrl });
