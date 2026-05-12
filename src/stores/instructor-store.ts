@@ -91,13 +91,23 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       courses: state.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     })),
   updateProfile: (patch) => set((state) => ({ profile: { ...state.profile, ...patch } })),
-  addSchedule: (session) =>
-    set((state) => ({
-      schedules: [
-        { ...session, id: `sess${Date.now()}` },
-        ...state.schedules,
-      ],
-    })),
+  addSchedule: async (session: any) => {
+    const instructorId = get().profile.id;
+    const program = get().courses.find(c => c.id === session.courseId);
+    await addDoc(timetableCollection, {
+      title: session.title,
+      programId: session.courseId,
+      programName: program?.title || "",
+      instructorId,
+      instructorName: get().profile.displayName || "",
+      date: session.date,
+      day: session.date ? new Date(session.date).toLocaleDateString("en-US", { weekday: "long" }) : "",
+      startTime: session.time,
+      endTime: session.time,
+      type: session.type,
+      location: session.location,
+    } as any);
+  },
   postAnnouncement: async (announcement) => {
     const instructorId = get().profile.id;
     await addDoc(announcementsCollection, {
