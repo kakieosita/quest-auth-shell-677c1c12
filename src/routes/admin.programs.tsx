@@ -474,7 +474,7 @@ function AdminPrograms() {
                     </div>
                   </CardContent>
                   <CardFooter className="pt-0 flex flex-col gap-2">
-                    <Button variant="outline" className="w-full">Edit Curriculum</Button>
+                    <Button variant="outline" className="w-full" onClick={() => openCurriculumEditor(program)}>Edit Curriculum</Button>
                     <div className="flex w-full gap-2">
                        <Button 
                          variant="secondary" 
