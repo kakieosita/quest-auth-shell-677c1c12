@@ -56,7 +56,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { useAdminStore } from "@/stores/admin-store";
+// admin store no longer needed for cohorts/timetable (now in Firestore)
 
 export const Route = createFileRoute("/admin/programs")({
   component: AdminPrograms,
