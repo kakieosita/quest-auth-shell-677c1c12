@@ -127,9 +127,7 @@ function AdminUsers() {
       if (formData.role === "instructor" && contractFile) {
         console.log("Uploading contract...");
         try {
-          const storageRef = ref(storage, `contracts/${uid}/${contractFile.name}`);
-          await uploadBytes(storageRef, contractFile);
-          const contractUrl = await getDownloadURL(storageRef);
+          const contractUrl = await uploadToCloudinary(contractFile, { folder: `contracts/${uid}` });
           
           // Update the document with the contract URL
           await updateDoc(doc(usersCollection, uid), { contractUrl });
