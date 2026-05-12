@@ -164,9 +164,21 @@ function AdminPrograms() {
       setInstructors(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User)));
     });
 
+    // Sync cohorts
+    const unsubCohorts = onSnapshot(query(cohortsCollection, orderBy("createdAt", "desc")), (snap) => {
+      setCohorts(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    // Sync timetable
+    const unsubTimetable = onSnapshot(timetableCollection, (snap) => {
+      setTimetable(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
     return () => {
       unsubPrograms();
       unsubInst();
+      unsubCohorts();
+      unsubTimetable();
     };
   }, []);
 
