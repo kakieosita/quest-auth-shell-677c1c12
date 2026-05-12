@@ -10,6 +10,9 @@ export type InstructorCourse = {
   revenue: number;
   completionRate: number;
   updatedAt: string;
+  materialsUrl?: string;
+  description?: string;
+  duration?: string;
 };
 
 export type EnrolledStudent = {

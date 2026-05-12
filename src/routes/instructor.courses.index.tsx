@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Pencil, Trash2, Users, Plus, Search } from "lucide-react";
+import { Pencil, Trash2, Users, Plus, Search, FileDown } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 
 export const Route = createFileRoute("/instructor/courses/")({
@@ -99,6 +99,16 @@ function MyCourses() {
                     <p className="text-[10px] text-muted-foreground">Rating</p>
                   </div>
                 </div>
+                {c.materialsUrl && (
+                  <a
+                    href={c.materialsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/20"
+                  >
+                    <FileDown className="h-3.5 w-3.5" /> Download study materials
+                  </a>
+                )}
                 <div className="mt-4 flex gap-2">
                   <Link
                     to="/instructor/students"
