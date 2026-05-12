@@ -218,6 +218,24 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       });
     }));
 
+    // 7. Sync Timetable (sessions admin scheduled for this instructor)
+    unsubs.push(onSnapshot(query(timetableCollection, where("instructorId", "==", instructorId)), (snap) => {
+      set({
+        schedules: snap.docs.map(d => {
+          const data: any = d.data();
+          return {
+            id: d.id,
+            title: data.title || "Untitled Session",
+            courseId: data.programId || "",
+            date: data.date || data.day || "",
+            time: `${data.startTime || ""}${data.endTime ? " - " + data.endTime : ""}`,
+            type: data.type === "virtual" ? "virtual" : "physical",
+            location: data.location || "",
+          } as any;
+        })
+      });
+    }));
+
     return () => unsubs.forEach(unsub => unsub());
   }
 }));
