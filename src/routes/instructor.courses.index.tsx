@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Pencil, Trash2, Users, Plus, Search } from "lucide-react";
+import { Pencil, Trash2, Users, Plus, Search, FileDown } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 
 export const Route = createFileRoute("/instructor/courses/")({
