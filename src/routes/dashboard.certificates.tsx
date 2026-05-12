@@ -10,6 +10,7 @@ export const Route = createFileRoute("/dashboard/certificates")({
 function Certificates() {
   const certificates = useDashboardStore((s) => s.certificates);
   const user = useDashboardStore((s) => s.user);
+  const studentName = user.displayName || user.email || "Student";
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -52,7 +53,7 @@ function Certificates() {
               <div className="space-y-3 p-5">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Awarded to</span>
-                  <span className="font-semibold text-foreground">{user.name}</span>
+                  <span className="font-semibold text-foreground">{studentName}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Issued</span>
