@@ -85,7 +85,35 @@ function AdminPrograms() {
     }
   });
 
-  const { cohorts } = useAdminStore();
+  // Cohorts state
+  const [cohorts, setCohorts] = useState<any[]>([]);
+  const [isCohortModalOpen, setIsCohortModalOpen] = useState(false);
+  const [cohortForm, setCohortForm] = useState({
+    name: "",
+    programId: "",
+    instructorId: "",
+    startDate: "",
+    endDate: "",
+    studentCount: 0,
+    status: "upcoming" as "upcoming" | "active" | "completed",
+  });
+
+  // Timetable state
+  const [timetable, setTimetable] = useState<any[]>([]);
+  const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
+  const [slotForm, setSlotForm] = useState({
+    title: "",
+    cohortId: "",
+    instructorId: "",
+    programId: "",
+    day: "Monday" as "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday",
+    date: new Date().toISOString().split("T")[0],
+    startTime: "09:00",
+    endTime: "11:00",
+    type: "physical" as "physical" | "virtual",
+    location: "",
+  });
+  const [filterInstructor, setFilterInstructor] = useState<string>("all");
 
   const [curriculumProgram, setCurriculumProgram] = useState<Program | null>(null);
   const [curriculumDraft, setCurriculumDraft] = useState<{ term: string; courses: string[] }[]>([]);
