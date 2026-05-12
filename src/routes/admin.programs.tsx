@@ -625,9 +625,68 @@ function AdminPrograms() {
 
         <TabsContent value="cohorts" className="space-y-4">
            <div className="flex justify-end">
-              <Button size="sm">
-                 <Plus className="mr-2 h-4 w-4" /> New Cohort
-              </Button>
+              <Dialog open={isCohortModalOpen} onOpenChange={setIsCohortModalOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New Cohort</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[520px]">
+                  <DialogHeader><DialogTitle>Create Cohort</DialogTitle></DialogHeader>
+                  <form onSubmit={handleCreateCohort} className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label>Cohort Name</Label>
+                      <Input required value={cohortForm.name} onChange={e => setCohortForm({...cohortForm, name: e.target.value})} placeholder="e.g. Web Dev Batch A 2026" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Program</Label>
+                      <Select value={cohortForm.programId} onValueChange={v => setCohortForm({...cohortForm, programId: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
+                        <SelectContent>
+                          {programs.map(p => <SelectItem key={p.id} value={p.id!}>{p.title}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Instructor</Label>
+                      <Select value={cohortForm.instructorId} onValueChange={v => setCohortForm({...cohortForm, instructorId: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select instructor" /></SelectTrigger>
+                        <SelectContent>
+                          {instructors.map(i => <SelectItem key={i.id} value={i.id}>{i.displayName}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Start Date</Label>
+                        <Input type="date" required value={cohortForm.startDate} onChange={e => setCohortForm({...cohortForm, startDate: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>End Date</Label>
+                        <Input type="date" required value={cohortForm.endDate} onChange={e => setCohortForm({...cohortForm, endDate: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Student Count</Label>
+                        <Input type="number" value={cohortForm.studentCount} onChange={e => setCohortForm({...cohortForm, studentCount: Number(e.target.value)})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select value={cohortForm.status} onValueChange={(v: any) => setCohortForm({...cohortForm, status: v})}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="upcoming">Upcoming</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button type="submit">Create Cohort</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
            </div>
            <div className="rounded-md border bg-card overflow-hidden">
               <Table>
@@ -635,6 +694,7 @@ function AdminPrograms() {
                     <TableRow>
                        <TableHead>Cohort Name</TableHead>
                        <TableHead>Program</TableHead>
+                       <TableHead>Instructor</TableHead>
                        <TableHead>Duration</TableHead>
                        <TableHead>Students</TableHead>
                        <TableHead>Status</TableHead>
@@ -642,21 +702,22 @@ function AdminPrograms() {
                     </TableRow>
                  </TableHeader>
                  <TableBody>
-                    {cohorts.map(c => (
+                    {cohorts.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">No cohorts yet. Create one to get started.</TableCell></TableRow>
+                    ) : cohorts.map((c: any) => (
                       <TableRow key={c.id}>
                          <TableCell className="font-bold">{c.name}</TableCell>
-                         <TableCell>Full-Stack Web Dev</TableCell>
-                         <TableCell className="text-xs text-muted-foreground">
-                            {c.startDate} to {c.endDate}
-                         </TableCell>
+                         <TableCell>{c.programName || "—"}</TableCell>
+                         <TableCell>{c.instructorName || "—"}</TableCell>
+                         <TableCell className="text-xs text-muted-foreground">{c.startDate} to {c.endDate}</TableCell>
                          <TableCell>{c.studentCount} students</TableCell>
                          <TableCell>
-                            <Badge variant={c.status === 'active' ? 'default' : 'secondary'}>
-                               {c.status}
-                            </Badge>
+                            <Badge variant={c.status === 'active' ? 'default' : 'secondary'}>{c.status}</Badge>
                          </TableCell>
                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm">Manage</Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteCohort(c.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                          </TableCell>
                       </TableRow>
                     ))}
@@ -666,47 +727,141 @@ function AdminPrograms() {
         </TabsContent>
 
         <TabsContent value="timetable" className="space-y-4">
-           <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-                 <Button variant="secondary" size="sm">Weekly View</Button>
-                 <Button variant="ghost" size="sm">Daily List</Button>
+           <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs">Filter by Instructor:</Label>
+                <Select value={filterInstructor} onValueChange={setFilterInstructor}>
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Instructors</SelectItem>
+                    {instructors.map(i => <SelectItem key={i.id} value={i.id}>{i.displayName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-              <Button size="sm">
-                 <CalendarDays className="mr-2 h-4 w-4" /> Add Slot
-              </Button>
+              <Dialog open={isSlotModalOpen} onOpenChange={setIsSlotModalOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm"><CalendarDays className="mr-2 h-4 w-4" /> Add Slot</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>Add Timetable Slot</DialogTitle></DialogHeader>
+                  <form onSubmit={handleCreateSlot} className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label>Session Title</Label>
+                      <Input required value={slotForm.title} onChange={e => setSlotForm({...slotForm, title: e.target.value})} placeholder="e.g. React Basics" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Instructor</Label>
+                        <Select value={slotForm.instructorId} onValueChange={v => setSlotForm({...slotForm, instructorId: v})}>
+                          <SelectTrigger><SelectValue placeholder="Select instructor" /></SelectTrigger>
+                          <SelectContent>
+                            {instructors.map(i => <SelectItem key={i.id} value={i.id}>{i.displayName}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Program</Label>
+                        <Select value={slotForm.programId} onValueChange={v => setSlotForm({...slotForm, programId: v})}>
+                          <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
+                          <SelectContent>
+                            {programs.map(p => <SelectItem key={p.id} value={p.id!}>{p.title}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cohort (optional)</Label>
+                      <Select value={slotForm.cohortId} onValueChange={v => setSlotForm({...slotForm, cohortId: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select cohort" /></SelectTrigger>
+                        <SelectContent>
+                          {cohorts.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Day of Week</Label>
+                        <Select value={slotForm.day} onValueChange={(v: any) => setSlotForm({...slotForm, day: v})}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Date</Label>
+                        <Input type="date" value={slotForm.date} onChange={e => setSlotForm({...slotForm, date: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Start Time</Label>
+                        <Input type="time" required value={slotForm.startTime} onChange={e => setSlotForm({...slotForm, startTime: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>End Time</Label>
+                        <Input type="time" required value={slotForm.endTime} onChange={e => setSlotForm({...slotForm, endTime: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Select value={slotForm.type} onValueChange={(v: any) => setSlotForm({...slotForm, type: v})}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="physical">Physical</SelectItem>
+                            <SelectItem value="virtual">Virtual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{slotForm.type === "virtual" ? "Meeting Link" : "Venue"}</Label>
+                        <Input required value={slotForm.location} onChange={e => setSlotForm({...slotForm, location: e.target.value})} placeholder={slotForm.type === "virtual" ? "https://zoom.us/..." : "Hall A"} />
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button type="submit">Add Slot</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
            </div>
            <Card>
               <CardContent className="p-0">
                  <div className="grid grid-cols-6 border-b divide-x">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(day => (
                       <div key={day} className="p-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted/20">
-                         {day}
+                         {day.slice(0,3)}
                       </div>
                     ))}
                  </div>
                  <div className="grid grid-cols-6 divide-x min-h-[400px]">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="p-2 space-y-2">
-                         {day === 'Mon' && (
-                           <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-[10px]">
-                              <p className="font-bold text-primary">React Basics</p>
-                              <p className="text-muted-foreground">09:00 - 11:00</p>
-                              <p className="flex items-center gap-1 mt-1 text-muted-foreground">
-                                 <MapPin className="h-2 w-2" /> Hall A
+                    {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(day => {
+                      const slots = timetable.filter((s: any) =>
+                        s.day === day && (filterInstructor === "all" || s.instructorId === filterInstructor)
+                      );
+                      return (
+                        <div key={day} className="p-2 space-y-2">
+                          {slots.map((s: any) => (
+                            <div key={s.id} className={`group p-2 rounded-lg border text-[10px] relative ${s.type === 'virtual' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-primary/10 border-primary/20'}`}>
+                              <button
+                                onClick={() => handleDeleteSlot(s.id)}
+                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition"
+                                aria-label="Delete slot"
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </button>
+                              <p className={`font-bold ${s.type === 'virtual' ? 'text-emerald-600' : 'text-primary'}`}>{s.title}</p>
+                              <p className="text-muted-foreground">{s.startTime} - {s.endTime}</p>
+                              <p className="text-muted-foreground truncate">{s.instructorName}</p>
+                              <p className="flex items-center gap-1 mt-1 text-muted-foreground truncate">
+                                 <MapPin className="h-2 w-2 shrink-0" /> {s.location}
                               </p>
-                           </div>
-                         )}
-                         {day === 'Wed' && (
-                           <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px]">
-                              <p className="font-bold text-emerald-600">AWS Workshop</p>
-                              <p className="text-muted-foreground">14:00 - 17:00</p>
-                              <p className="flex items-center gap-1 mt-1 text-muted-foreground">
-                                 <MapPin className="h-2 w-2" /> Virtual
-                              </p>
-                           </div>
-                         )}
-                      </div>
-                    ))}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
                  </div>
               </CardContent>
            </Card>
