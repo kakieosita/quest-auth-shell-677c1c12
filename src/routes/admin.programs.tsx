@@ -87,6 +87,41 @@ function AdminPrograms() {
 
   const { cohorts } = useAdminStore();
 
+  const [curriculumProgram, setCurriculumProgram] = useState<Program | null>(null);
+  const [curriculumDraft, setCurriculumDraft] = useState<{ term: string; courses: string[] }[]>([]);
+  const [savingCurriculum, setSavingCurriculum] = useState(false);
+
+  const openCurriculumEditor = (program: Program) => {
+    setCurriculumProgram(program);
+    setCurriculumDraft(
+      Array.isArray(program.curriculum) && program.curriculum.length > 0
+        ? program.curriculum.map((t) => ({ term: t.term, courses: [...(t.courses || [])] }))
+        : []
+    );
+  };
+
+  const saveCurriculum = async () => {
+    if (!curriculumProgram?.id) return;
+    setSavingCurriculum(true);
+    try {
+      const cleaned = curriculumDraft
+        .map((t) => ({ term: t.term.trim(), courses: t.courses.map((c) => c.trim()).filter(Boolean) }))
+        .filter((t) => t.term.length > 0);
+      await updateDoc(doc(programsCollection, curriculumProgram.id), {
+        curriculum: cleaned,
+        updatedAt: Timestamp.now(),
+      });
+      toast.success("Curriculum saved");
+      setCurriculumProgram(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save curriculum");
+    } finally {
+      setSavingCurriculum(false);
+    }
+  };
+
+
   useEffect(() => {
     // Sync programs
     const q = query(programsCollection, orderBy("createdAt", "desc"));
