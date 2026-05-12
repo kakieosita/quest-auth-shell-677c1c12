@@ -602,6 +602,99 @@ function AdminPrograms() {
            </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!curriculumProgram} onOpenChange={(o) => !o && setCurriculumProgram(null)}>
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Curriculum — {curriculumProgram?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {curriculumDraft.length === 0 && (
+              <p className="text-sm text-muted-foreground">No terms yet. Add one to get started.</p>
+            )}
+            {curriculumDraft.map((term, ti) => (
+              <div key={ti} className="border rounded-md p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={term.term}
+                    onChange={(e) => {
+                      const next = [...curriculumDraft];
+                      next[ti] = { ...next[ti], term: e.target.value };
+                      setCurriculumDraft(next);
+                    }}
+                    placeholder={`Term ${ti + 1} name (e.g. Term 1)`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCurriculumDraft(curriculumDraft.filter((_, i) => i !== ti))}
+                    aria-label="Remove term"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-2 pl-2">
+                  {term.courses.map((course, ci) => (
+                    <div key={ci} className="flex items-center gap-2">
+                      <Input
+                        value={course}
+                        onChange={(e) => {
+                          const next = [...curriculumDraft];
+                          const courses = [...next[ti].courses];
+                          courses[ci] = e.target.value;
+                          next[ti] = { ...next[ti], courses };
+                          setCurriculumDraft(next);
+                        }}
+                        placeholder="Course / module title"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const next = [...curriculumDraft];
+                          next[ti] = { ...next[ti], courses: next[ti].courses.filter((_, i) => i !== ci) };
+                          setCurriculumDraft(next);
+                        }}
+                        aria-label="Remove course"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const next = [...curriculumDraft];
+                      next[ti] = { ...next[ti], courses: [...next[ti].courses, ""] };
+                      setCurriculumDraft(next);
+                    }}
+                  >
+                    <Plus className="mr-1 h-3 w-3" /> Add course
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setCurriculumDraft([...curriculumDraft, { term: `Term ${curriculumDraft.length + 1}`, courses: [] }])}
+            >
+              <Plus className="mr-1 h-4 w-4" /> Add term
+            </Button>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setCurriculumProgram(null)} disabled={savingCurriculum}>Cancel</Button>
+            <Button onClick={saveCurriculum} disabled={savingCurriculum}>
+              {savingCurriculum ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Curriculum
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
