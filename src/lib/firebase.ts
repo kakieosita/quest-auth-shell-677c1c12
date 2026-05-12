@@ -10,12 +10,12 @@ const hasUsableApiKey =
   configuredApiKey.length >= 30;
 
 const fallbackFirebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-  authDomain: "demo.invalid",
-  projectId: "demo-preview",
-  storageBucket: "demo-preview.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000000000",
+  apiKey: "AIzaSyB2TvVX-hR-wcJ2Kmg9nPPSXo5bHvQDWI8",
+  authDomain: "ust-portal.firebaseapp.com",
+  projectId: "ust-portal",
+  storageBucket: "ust-portal.firebasestorage.app",
+  messagingSenderId: "511127200404",
+  appId: "1:511127200404:web:40758a42a93c729ddf8a81",
 };
 
 const firebaseConfig: FirebaseOptions = hasUsableApiKey
