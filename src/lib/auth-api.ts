@@ -12,11 +12,11 @@ import {
   updateProfile,
   sendEmailVerification
 } from "firebase/auth";
-import { doc, setDoc, getDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, Timestamp, addDoc, getDocs, query, where } from "firebase/firestore";
 import { auth } from "./firebase";
 import { useAuthStore } from "@/stores/auth-store";
 import { User as DbUser } from "./db/schema";
-import { usersCollection, studentsCollection, instructorsCollection } from "./db/collections";
+import { usersCollection, studentsCollection, instructorsCollection, programsCollection, enrollmentsCollection } from "./db/collections";
 
 const TOKEN_KEY = "edu_auth_token";
 const USER_KEY = "edu_auth_user";
