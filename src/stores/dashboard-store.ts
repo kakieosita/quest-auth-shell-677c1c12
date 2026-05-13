@@ -17,7 +17,9 @@ import {
   query, 
   where, 
   doc, 
-  updateDoc 
+  updateDoc,
+  addDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { 
   db, storage 
@@ -31,7 +33,8 @@ import {
   activitiesCollection, 
   announcementsCollection,
   eventsCollection,
-  usersCollection
+  usersCollection,
+  submissionsCollection,
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
@@ -86,19 +89,34 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       }),
     })),
   submitAssignment: async (id, file) => {
-    const userId = get().user.id;
+    const user = get().user as any;
+    const userId = user.id;
+    const assignment = (get().assignments as any[]).find((a) => a.id === id);
     const storageRef = ref(storage, `submissions/${userId}/${id}/${file.name}`);
-    
+
     try {
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      
-      await updateDoc(doc(assignmentsCollection, id), {
-        status: "submitted",
-        submissionUrl: url,
-        updatedAt: new Date() // Assignment schema might need updatedAt but we'll stick to status/url
+
+      // Create a submission record so the instructor can see/grade it
+      await addDoc(submissionsCollection, {
+        assignmentId: id,
+        studentId: userId,
+        studentName: user.displayName || user.email || "Student",
+        studentEmail: user.email || "",
+        instructorId: assignment?.instructorId || "",
+        fileUrl: url,
+        fileName: file.name,
+        status: "pending",
+        submittedAt: Timestamp.now(),
       } as any);
-      
+
+      // Mark this student's view of the assignment as submitted (local)
+      set((state) => ({
+        assignments: state.assignments.map((a: any) =>
+          a.id === id ? { ...a, status: "submitted", submissionUrl: url } : a,
+        ),
+      }));
     } catch (error) {
       console.error("Assignment submission failed:", error);
       throw error;

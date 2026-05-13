@@ -3,6 +3,8 @@ import { useState } from "react";
 import { Plus, FileText, ClipboardCheck, X, Download } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { toast } from "sonner";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
 
 export const Route = createFileRoute("/instructor/assignments")({
   component: AssignmentsPage,
@@ -20,27 +22,46 @@ function AssignmentsPage() {
   const [feedbackInput, setFeedbackInput] = useState("");
   const [newAssignment, setNewAssignment] = useState<{ title: string; courseId: string; type: "assignment" | "quiz"; dueDate: string }>({ title: "", courseId: "", type: "assignment", dueDate: "" });
 
+  const [assignmentFile, setAssignmentFile] = useState<File | null>(null);
+  const [creating, setCreating] = useState(false);
+
   const submit = async () => {
     if (!newAssignment.title || !newAssignment.courseId) {
       toast.error("Please fill in the title and select a course.");
       return;
     }
-    
+
+    setCreating(true);
     try {
       const course = courses.find(c => c.id === newAssignment.courseId);
+
+      let fileUrl: string | undefined;
+      let fileName: string | undefined;
+      if (assignmentFile) {
+        const storageRef = ref(storage, `assignments/${newAssignment.courseId}/${Date.now()}_${assignmentFile.name}`);
+        await uploadBytes(storageRef, assignmentFile);
+        fileUrl = await getDownloadURL(storageRef);
+        fileName = assignmentFile.name;
+      }
+
       await addAssignment({
         title: newAssignment.title,
         courseId: newAssignment.courseId,
         courseName: course?.title || "",
         type: newAssignment.type as any,
         dueDate: newAssignment.dueDate,
-        description: ""
-      });
+        description: "",
+        ...(fileUrl ? { fileUrl, fileName } as any : {}),
+      } as any);
       toast.success("Assignment created successfully!");
       setOpenCreate(false);
       setNewAssignment({ title: "", courseId: "", type: "assignment", dueDate: "" });
+      setAssignmentFile(null);
     } catch (error) {
+      console.error(error);
       toast.error("Failed to create assignment.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -182,16 +203,20 @@ function AssignmentsPage() {
                 <label className="mb-1 block text-xs font-semibold">Assignment File (Optional)</label>
                 <input
                   type="file"
+                  onChange={(e) => setAssignmentFile(e.target.files?.[0] || null)}
                   className="w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-accent file:text-primary hover:file:bg-accent/80 cursor-pointer"
                 />
+                {assignmentFile && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">{assignmentFile.name}</p>
+                )}
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setOpenCreate(false)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted transition">
                 Cancel
               </button>
-              <button onClick={submit} className="rounded-xl bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow transition">
-                Create
+              <button onClick={submit} disabled={creating} className="rounded-xl bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow transition disabled:opacity-60">
+                {creating ? "Creating…" : "Create"}
               </button>
             </div>
           </div>
@@ -236,9 +261,16 @@ function AssignmentsPage() {
                         Grade
                       </button>
                     )}
-                    <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition" aria-label="Download">
+                    <a
+                      href={(sub as any).fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={(sub as any).fileName || true}
+                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition"
+                      aria-label="Download"
+                    >
                       <Download className="h-4 w-4" />
-                    </button>
+                    </a>
                   </div>
 
                   {(gradingId === sub.id) && (

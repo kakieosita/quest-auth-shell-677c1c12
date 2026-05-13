@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Award } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Award, Download } from "lucide-react";
 import { useDashboardStore } from "@/stores/dashboard-store";
 import { toast } from "sonner";
 import type { Assignment } from "@/lib/dashboard-data";
@@ -96,7 +96,19 @@ function Assignments() {
                     )}
                   </div>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 flex flex-col gap-2 sm:items-end">
+                  {(a as any).fileUrl && (
+                    <a
+                      href={(a as any).fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={(a as any).fileName || true}
+                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download {(a as any).fileName ? "" : "assignment"}
+                    </a>
+                  )}
                   {a.status === "pending" || a.status === "overdue" ? (
                     <button
                       onClick={() => handleUpload(a.id)}
@@ -107,9 +119,10 @@ function Assignments() {
                       {uploadingId === a.id ? "Uploading…" : "Upload submission"}
                     </button>
                   ) : (
-                    <button className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent">
-                      View submission
-                    </button>
+                    <span className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                      Submitted
+                    </span>
                   )}
                 </div>
               </li>
