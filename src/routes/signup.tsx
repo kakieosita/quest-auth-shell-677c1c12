@@ -3,8 +3,10 @@ import { useForm } from "react-hook-form";
 import { motion } from "framer-motion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, User, GraduationCap, Briefcase } from "lucide-react";
+import { onSnapshot } from "firebase/firestore";
+import { programsCollection } from "@/lib/db/collections";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormField } from "@/components/auth/FormField";
 import { PasswordField } from "@/components/auth/PasswordField";
@@ -49,7 +51,14 @@ function SignupPage() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [programs, setPrograms] = useState<{ id: string; title: string }[]>([]);
 
+  useEffect(() => {
+    const unsub = onSnapshot(programsCollection, (snap) => {
+      setPrograms(snap.docs.map(d => ({ id: d.id, title: (d.data() as any).title || "Untitled" })));
+    });
+    return () => unsub();
+  }, []);
   const {
     register,
     handleSubmit,
@@ -185,12 +194,23 @@ function SignupPage() {
               </div>
             </div>
 
-            <FormField
-              label={watchRole === "student" ? "Course/Skill Interested In" : "Course/Skill You Will Teach"}
-              placeholder="e.g. Data Science, Web Dev"
-              error={errors.interestedCourse?.message}
-              {...register("interestedCourse")}
-            />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                {watchRole === "student" ? "Course/Skill Interested In" : "Course/Skill You Will Teach"}
+              </label>
+              <select
+                className="w-full h-10 px-3 rounded-xl border border-input bg-card text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                {...register("interestedCourse")}
+              >
+                <option value="">Select a course</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.title}>{p.title}</option>
+                ))}
+              </select>
+              {errors.interestedCourse?.message && (
+                <p className="text-xs font-medium text-destructive">{errors.interestedCourse.message}</p>
+              )}
+            </div>
 
             <FormField
               label="Resident Address"

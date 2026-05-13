@@ -28,7 +28,8 @@ import {
   announcementsCollection,
   assignmentsCollection,
   submissionsCollection,
-  timetableCollection
+  timetableCollection,
+  studentsCollection
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
@@ -156,43 +157,73 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       if (snap.exists()) set({ profile: snap.data() as any });
     }));
 
-    // 2. Sync Instructor's Courses
-    unsubs.push(onSnapshot(query(programsCollection, where("instructorId", "==", instructorId)), (snap) => {
-      set({ 
-        courses: snap.docs.map(d => {
-          const data = d.data();
-          return {
-            ...data,
-            id: d.id,
-            students: data.students || 0,
-            revenue: data.revenue || 0,
-            completionRate: data.completionRate || 0,
-            rating: data.rating || 0,
-            status: data.status || "published",
-            thumbnail: data.thumbnail || "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-          } as any;
-        }) 
-      });
-    }));
+    // Helpers to merge enrollments + applicants (students whose
+    // interestedCourse matches one of this instructor's course titles)
+    let rawEnrollments: any[] = [];
+    let rawApplicants: any[] = [];
+    let courseList: any[] = [];
 
-    // 3. Sync Students (Enrollments for Instructor's Courses)
-    unsubs.push(onSnapshot(enrollmentsCollection, (snap) => {
-      // Filter enrollments for this instructor's courses on the client side 
-      // or implement a better query if programIds are known.
-      // For now, we'll map them to the expected EnrolledStudent format.
-      const enrolled = snap.docs.map(d => {
-        const data = d.data();
-        return {
-          ...data,
-          id: d.id,
+    const recomputeStudents = () => {
+      const courseTitles = new Set(courseList.map((c) => (c.title || "").toLowerCase()));
+      const courseIds = new Set(courseList.map((c) => c.id));
+      const titleToId: Record<string, string> = {};
+      courseList.forEach((c) => { titleToId[(c.title || "").toLowerCase()] = c.id; });
+
+      const enrolled = rawEnrollments
+        .filter((e) => !e.programId || courseIds.has(e.programId))
+        .map((data) => ({
+          id: data.id,
           name: data.studentName || "Unknown Student",
           email: data.studentEmail || "No Email",
+          courseId: data.programId || "",
           progress: data.progress || 0,
-          lastActive: data.updatedAt ? (data.updatedAt as any).toDate?.().toLocaleDateString() || data.updatedAt : "N/A",
+          lastActive: data.updatedAt?.toDate?.().toLocaleDateString() || data.updatedAt || "N/A",
           grade: data.grade || "",
-        } as any;
+        }));
+
+      const applicants = rawApplicants
+        .filter((s) => s.interestedCourse && courseTitles.has(String(s.interestedCourse).toLowerCase()))
+        .filter((s) => !rawEnrollments.some((e) => e.studentId === s.id))
+        .map((s) => ({
+          id: s.id,
+          name: s.displayName || s.email || "Applicant",
+          email: s.email || "",
+          courseId: titleToId[String(s.interestedCourse).toLowerCase()] || "",
+          progress: 0,
+          lastActive: "Applied",
+          grade: "",
+        }));
+
+      set({ students: [...enrolled, ...applicants] as any });
+    };
+
+    // 2. Sync Instructor's Courses
+    unsubs.push(onSnapshot(query(programsCollection, where("instructorId", "==", instructorId)), (snap) => {
+      courseList = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      set({ 
+        courses: courseList.map((data: any) => ({
+          ...data,
+          students: data.students || 0,
+          revenue: data.revenue || 0,
+          completionRate: data.completionRate || 0,
+          rating: data.rating || 0,
+          status: data.status || "published",
+          thumbnail: data.thumbnail || "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+        })) as any 
       });
-      set({ students: enrolled });
+      recomputeStudents();
+    }));
+
+    // 3a. Sync Enrollments
+    unsubs.push(onSnapshot(enrollmentsCollection, (snap) => {
+      rawEnrollments = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      recomputeStudents();
+    }));
+
+    // 3b. Sync Student Applicants (signups whose interestedCourse matches)
+    unsubs.push(onSnapshot(studentsCollection, (snap) => {
+      rawApplicants = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      recomputeStudents();
     }));
 
     // 4. Sync Announcements
