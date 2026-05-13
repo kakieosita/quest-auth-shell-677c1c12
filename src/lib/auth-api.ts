@@ -116,6 +116,35 @@ export const authApi = {
     // 4. Duplicate into students collection if student
     if (input.role === "student") {
       await setDoc(doc(studentsCollection, userCredential.user.uid), userData);
+
+      // 4b. Auto-enroll the student in their interested course so the instructor sees them
+      if (input.interestedCourse) {
+        try {
+          const programsSnap = await getDocs(programsCollection);
+          const target = programsSnap.docs.find(
+            (d) => String((d.data() as any).title || "").trim().toLowerCase() ===
+              String(input.interestedCourse).trim().toLowerCase()
+          );
+          if (target) {
+            const program: any = target.data();
+            await addDoc(enrollmentsCollection, {
+              studentId: userCredential.user.uid,
+              studentName: input.fullName,
+              studentEmail: input.email,
+              programId: target.id,
+              programName: program.title,
+              instructorId: program.instructorId || "",
+              progress: 0,
+              grade: "",
+              status: "active",
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now(),
+            } as any);
+          }
+        } catch (e) {
+          console.error("Auto-enrollment failed:", e);
+        }
+      }
     } else if (input.role === "instructor") {
       await setDoc(doc(instructorsCollection, userCredential.user.uid), userData);
     }
