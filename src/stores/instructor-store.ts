@@ -119,8 +119,11 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
   },
   addAssignment: async (assignment) => {
     const instructorId = get().profile.id;
+    const programId = assignment.courseId;
     await addDoc(assignmentsCollection, {
       ...assignment,
+      programId,
+      programName: assignment.courseName,
       instructorId,
       submissionsCount: 0,
       gradedCount: 0,

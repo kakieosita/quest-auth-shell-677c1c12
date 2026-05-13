@@ -125,23 +125,41 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     let enrolledProgramIds: string[] = [];
     let allAssignments: any[] = [];
 
+    const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
+
+    const getInterestedProgramId = (titleToId: Record<string, string>) => {
+      const interestedCourseId = String(userProfile.interestedCourseId || "");
+      if (interestedCourseId && allPrograms.some((p) => p.id === interestedCourseId)) return interestedCourseId;
+
+      const interestedCourse = String(userProfile.interestedCourse || "");
+      if (interestedCourse && allPrograms.some((p) => p.id === interestedCourse)) return interestedCourse;
+
+      return titleToId[normalize(interestedCourse)];
+    };
+
+    const getAssignmentProgramId = (assignment: any, titleToId: Record<string, string>) => {
+      const directId = assignment.programId || assignment.courseId;
+      if (directId && allPrograms.some((p) => p.id === directId)) return directId;
+
+      return titleToId[normalize(assignment.programName || assignment.courseName || assignment.course)];
+    };
+
     const recomputeAssignments = () => {
       const titleToId: Record<string, string> = {};
-      allPrograms.forEach((p) => { titleToId[String(p.title || "").toLowerCase()] = p.id; });
+      allPrograms.forEach((p) => { titleToId[normalize(p.title)] = p.id; });
       const idToTitle: Record<string, string> = {};
       allPrograms.forEach((p) => { idToTitle[p.id] = p.title; });
 
-      const interestedId = userProfile.interestedCourse
-        ? titleToId[String(userProfile.interestedCourse).toLowerCase()]
-        : undefined;
+      const interestedId = getInterestedProgramId(titleToId);
 
       const programIds = new Set<string>([...enrolledProgramIds, ...(interestedId ? [interestedId] : [])]);
 
       const visible = allAssignments
-        .filter((a) => a.programId && programIds.has(a.programId))
+        .map((a) => ({ ...a, resolvedProgramId: getAssignmentProgramId(a, titleToId) }))
+        .filter((a) => a.resolvedProgramId && programIds.has(a.resolvedProgramId))
         .map((a) => ({
           ...a,
-          course: idToTitle[a.programId] || a.course || "",
+          course: idToTitle[a.resolvedProgramId] || a.courseName || a.programName || a.course || "",
           status: a.status || "pending",
           dueDate: (a.dueDate as any)?.toDate?.().toISOString?.() || a.dueDate,
         }));
@@ -151,10 +169,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
     const recomputeCourses = () => {
       const titleToId: Record<string, string> = {};
-      allPrograms.forEach((p) => { titleToId[String(p.title || "").toLowerCase()] = p.id; });
-      const interestedId = userProfile.interestedCourse
-        ? titleToId[String(userProfile.interestedCourse).toLowerCase()]
-        : undefined;
+      allPrograms.forEach((p) => { titleToId[normalize(p.title)] = p.id; });
+      const interestedId = getInterestedProgramId(titleToId);
       const programIds = new Set<string>([...enrolledProgramIds, ...(interestedId ? [interestedId] : [])]);
 
       const courses = allPrograms
