@@ -21,10 +21,10 @@ import {
   addDoc,
   Timestamp,
 } from "firebase/firestore";
-import { 
-  db, storage 
+import {
+  db,
 } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { 
   enrollmentsCollection, 
   programsCollection, 
