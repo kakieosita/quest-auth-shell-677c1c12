@@ -210,7 +210,6 @@ function AssignmentsPage() {
                   <p className="mt-1 text-[10px] text-muted-foreground">{assignmentFile.name}</p>
                 )}
               </div>
-              </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setOpenCreate(false)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted transition">
