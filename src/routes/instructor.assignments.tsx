@@ -215,8 +215,8 @@ function AssignmentsPage() {
               <button onClick={() => setOpenCreate(false)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted transition">
                 Cancel
               </button>
-              <button onClick={submit} className="rounded-xl bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow transition">
-                Create
+              <button onClick={submit} disabled={creating} className="rounded-xl bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow transition disabled:opacity-60">
+                {creating ? "Creating…" : "Create"}
               </button>
             </div>
           </div>
