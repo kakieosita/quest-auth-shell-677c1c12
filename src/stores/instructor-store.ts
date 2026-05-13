@@ -28,7 +28,8 @@ import {
   announcementsCollection,
   assignmentsCollection,
   submissionsCollection,
-  timetableCollection
+  timetableCollection,
+  studentsCollection
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
