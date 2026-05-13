@@ -97,7 +97,7 @@ function Assignments() {
                   </div>
                 </div>
                 <div className="shrink-0 flex flex-col gap-2 sm:items-end">
-                  {(a as any).fileUrl && (
+                  {(a as any).fileUrl ? (
                     <a
                       href={(a as any).fileUrl}
                       target="_blank"
@@ -106,8 +106,25 @@ function Assignments() {
                       className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
                     >
                       <Download className="h-4 w-4" />
-                      Download {(a as any).fileName ? "" : "assignment"}
+                      Download {(a as any).fileName || "assignment"}
                     </a>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        const content = `Assignment: ${a.title}\nCourse: ${a.course}\nDue: ${new Date(a.dueDate).toLocaleDateString()}\n\n${(a as any).description || "No additional instructions provided by the instructor."}`;
+                        const blob = new Blob([content], { type: "text/plain" });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = `${a.title.replace(/[^a-z0-9]+/gi, "_")}.txt`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download brief
+                    </button>
                   )}
                   {a.status === "pending" || a.status === "overdue" ? (
                     <button
