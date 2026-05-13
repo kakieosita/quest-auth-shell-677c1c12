@@ -37,9 +37,7 @@ function AssignmentsPage() {
       let fileUrl: string | undefined;
       let fileName: string | undefined;
       if (assignmentFile) {
-        const storageRef = ref(storage, `assignments/${newAssignment.courseId}/${Date.now()}_${assignmentFile.name}`);
-        await uploadBytes(storageRef, assignmentFile);
-        fileUrl = await getDownloadURL(storageRef);
+        fileUrl = await uploadToCloudinary(assignmentFile, { folder: `assignments/${newAssignment.courseId}` });
         fileName = assignmentFile.name;
       }
 
