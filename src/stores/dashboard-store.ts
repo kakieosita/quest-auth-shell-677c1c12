@@ -184,20 +184,20 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       if (snap.exists()) {
         userProfile = snap.data();
         set({ user: userProfile as any });
-        recomputeAssignments();
+        recomputeAll();
       }
     }));
 
     // 2. Sync all programs (so we can map title <-> id)
     unsubs.push(onSnapshot(programsCollection, (snap) => {
       allPrograms = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
-      recomputeAssignments();
+      recomputeAll();
     }));
 
     // 3. Sync Enrollments
     unsubs.push(onSnapshot(query(enrollmentsCollection, where("studentId", "==", userId)), (snap) => {
       enrolledProgramIds = snap.docs.map((d) => (d.data() as any).programId).filter(Boolean);
-      recomputeAssignments();
+      recomputeAll();
     }));
 
     // 4. Sync ALL Assignments — filtered client-side by program membership
