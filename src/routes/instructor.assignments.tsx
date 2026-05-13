@@ -22,27 +22,46 @@ function AssignmentsPage() {
   const [feedbackInput, setFeedbackInput] = useState("");
   const [newAssignment, setNewAssignment] = useState<{ title: string; courseId: string; type: "assignment" | "quiz"; dueDate: string }>({ title: "", courseId: "", type: "assignment", dueDate: "" });
 
+  const [assignmentFile, setAssignmentFile] = useState<File | null>(null);
+  const [creating, setCreating] = useState(false);
+
   const submit = async () => {
     if (!newAssignment.title || !newAssignment.courseId) {
       toast.error("Please fill in the title and select a course.");
       return;
     }
-    
+
+    setCreating(true);
     try {
       const course = courses.find(c => c.id === newAssignment.courseId);
+
+      let fileUrl: string | undefined;
+      let fileName: string | undefined;
+      if (assignmentFile) {
+        const storageRef = ref(storage, `assignments/${newAssignment.courseId}/${Date.now()}_${assignmentFile.name}`);
+        await uploadBytes(storageRef, assignmentFile);
+        fileUrl = await getDownloadURL(storageRef);
+        fileName = assignmentFile.name;
+      }
+
       await addAssignment({
         title: newAssignment.title,
         courseId: newAssignment.courseId,
         courseName: course?.title || "",
         type: newAssignment.type as any,
         dueDate: newAssignment.dueDate,
-        description: ""
-      });
+        description: "",
+        ...(fileUrl ? { fileUrl, fileName } as any : {}),
+      } as any);
       toast.success("Assignment created successfully!");
       setOpenCreate(false);
       setNewAssignment({ title: "", courseId: "", type: "assignment", dueDate: "" });
+      setAssignmentFile(null);
     } catch (error) {
+      console.error(error);
       toast.error("Failed to create assignment.");
+    } finally {
+      setCreating(false);
     }
   };
 
