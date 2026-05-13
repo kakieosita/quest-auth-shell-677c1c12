@@ -51,7 +51,14 @@ function SignupPage() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [programs, setPrograms] = useState<{ id: string; title: string }[]>([]);
 
+  useEffect(() => {
+    const unsub = onSnapshot(programsCollection, (snap) => {
+      setPrograms(snap.docs.map(d => ({ id: d.id, title: (d.data() as any).title || "Untitled" })));
+    });
+    return () => unsub();
+  }, []);
   const {
     register,
     handleSubmit,
