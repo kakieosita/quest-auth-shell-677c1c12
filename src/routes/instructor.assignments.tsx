@@ -261,9 +261,16 @@ function AssignmentsPage() {
                         Grade
                       </button>
                     )}
-                    <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition" aria-label="Download">
+                    <a
+                      href={(sub as any).fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={(sub as any).fileName || true}
+                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition"
+                      aria-label="Download"
+                    >
                       <Download className="h-4 w-4" />
-                    </button>
+                    </a>
                   </div>
 
                   {(gradingId === sub.id) && (
