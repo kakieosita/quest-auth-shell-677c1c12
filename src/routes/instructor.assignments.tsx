@@ -203,8 +203,13 @@ function AssignmentsPage() {
                 <label className="mb-1 block text-xs font-semibold">Assignment File (Optional)</label>
                 <input
                   type="file"
+                  onChange={(e) => setAssignmentFile(e.target.files?.[0] || null)}
                   className="w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-accent file:text-primary hover:file:bg-accent/80 cursor-pointer"
                 />
+                {assignmentFile && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">{assignmentFile.name}</p>
+                )}
+              </div>
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
