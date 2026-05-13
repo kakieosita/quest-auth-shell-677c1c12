@@ -17,7 +17,9 @@ import {
   query, 
   where, 
   doc, 
-  updateDoc 
+  updateDoc,
+  addDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { 
   db, storage 
@@ -31,7 +33,8 @@ import {
   activitiesCollection, 
   announcementsCollection,
   eventsCollection,
-  usersCollection
+  usersCollection,
+  submissionsCollection,
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
