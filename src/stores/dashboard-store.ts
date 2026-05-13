@@ -149,25 +149,55 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set({ assignments: visible as any, loading: false });
     };
 
+    const recomputeCourses = () => {
+      const titleToId: Record<string, string> = {};
+      allPrograms.forEach((p) => { titleToId[String(p.title || "").toLowerCase()] = p.id; });
+      const interestedId = userProfile.interestedCourse
+        ? titleToId[String(userProfile.interestedCourse).toLowerCase()]
+        : undefined;
+      const programIds = new Set<string>([...enrolledProgramIds, ...(interestedId ? [interestedId] : [])]);
+
+      const courses = allPrograms
+        .filter((p) => programIds.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          title: p.title || "Untitled",
+          instructor: p.instructor || p.instructorName || "TBA",
+          category: p.category || p.type || "Course",
+          thumbnail: p.thumbnail || p.image
+            ? `url(${p.thumbnail || p.image})`
+            : "linear-gradient(135deg, hsl(var(--primary)/0.6), hsl(var(--primary)/0.2))",
+          progress: typeof p.progress === "number" ? p.progress : 0,
+          totalLessons: p.totalLessons || (p.lessons?.length ?? 0),
+          completedLessons: p.completedLessons || 0,
+          duration: p.duration || "—",
+          lessons: p.lessons || [],
+        }));
+
+      set({ courses: courses as any });
+    };
+
+    const recomputeAll = () => { recomputeAssignments(); recomputeCourses(); };
+
     // 1. Sync User Profile
     unsubs.push(onSnapshot(doc(usersCollection, userId), (snap) => {
       if (snap.exists()) {
         userProfile = snap.data();
         set({ user: userProfile as any });
-        recomputeAssignments();
+        recomputeAll();
       }
     }));
 
     // 2. Sync all programs (so we can map title <-> id)
     unsubs.push(onSnapshot(programsCollection, (snap) => {
       allPrograms = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
-      recomputeAssignments();
+      recomputeAll();
     }));
 
     // 3. Sync Enrollments
     unsubs.push(onSnapshot(query(enrollmentsCollection, where("studentId", "==", userId)), (snap) => {
       enrolledProgramIds = snap.docs.map((d) => (d.data() as any).programId).filter(Boolean);
-      recomputeAssignments();
+      recomputeAll();
     }));
 
     // 4. Sync ALL Assignments — filtered client-side by program membership
