@@ -21,10 +21,10 @@ import {
   addDoc,
   Timestamp,
 } from "firebase/firestore";
-import { 
-  db, storage 
+import {
+  db,
 } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { 
   enrollmentsCollection, 
   programsCollection, 
@@ -92,11 +92,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const user = get().user as any;
     const userId = user.id;
     const assignment = (get().assignments as any[]).find((a) => a.id === id);
-    const storageRef = ref(storage, `submissions/${userId}/${id}/${file.name}`);
 
     try {
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadToCloudinary(file, { folder: `submissions/${userId}/${id}` });
 
       // Create a submission record so the instructor can see/grade it
       await addDoc(submissionsCollection, {
