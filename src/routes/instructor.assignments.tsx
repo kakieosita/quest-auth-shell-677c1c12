@@ -3,8 +3,7 @@ import { useState } from "react";
 import { Plus, FileText, ClipboardCheck, X, Download } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { toast } from "sonner";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const Route = createFileRoute("/instructor/assignments")({
   component: AssignmentsPage,
