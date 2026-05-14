@@ -184,9 +184,16 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
           grade: data.grade || "",
         }));
 
+      const enrolledStudentIds = new Set(enrolled.map((e) => (e as any).id));
+      // Also dedupe by underlying studentId in case enrollment doc id != studentId
+      const enrolledByStudentId = new Set(
+        rawEnrollments
+          .filter((e) => e.programId && courseIds.has(e.programId))
+          .map((e) => e.studentId)
+      );
       const applicants = rawApplicants
         .filter((s) => s.interestedCourse && courseTitles.has(String(s.interestedCourse).toLowerCase()))
-        .filter((s) => !rawEnrollments.some((e) => e.studentId === s.id))
+        .filter((s) => !enrolledStudentIds.has(s.id) && !enrolledByStudentId.has(s.id))
         .map((s) => ({
           id: s.id,
           name: s.displayName || s.email || "Applicant",
