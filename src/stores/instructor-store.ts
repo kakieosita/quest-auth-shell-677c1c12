@@ -249,7 +249,7 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       recomputeStudents();
       set({ 
         submissions: rawSubmissions.map(d => ({ 
-          ...d.data(), 
+          ...d, 
           id: d.id,
           submittedAt: (d.submittedAt as any)?.toDate?.().toLocaleDateString() || d.submittedAt
         } as any)) 
