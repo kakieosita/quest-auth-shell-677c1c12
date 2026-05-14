@@ -181,8 +181,14 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
         }));
 
       const enrolledStudentIds = new Set(enrolled.map((e) => e.id).filter(Boolean));
+      const seenSubmitters = new Set<string>();
       const submitters = rawSubmissions
         .filter((s) => s.studentId && !enrolledStudentIds.has(s.studentId))
+        .filter((s) => {
+          if (seenSubmitters.has(s.studentId)) return false;
+          seenSubmitters.add(s.studentId);
+          return true;
+        })
         .map((s) => ({
           id: s.studentId,
           name: s.studentName || "Student",
