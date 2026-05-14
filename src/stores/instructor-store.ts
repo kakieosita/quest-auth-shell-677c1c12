@@ -161,12 +161,14 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
 
     // Helpers to merge enrollments + submitted students. All reads must be
     // scoped to this instructor to satisfy Firestore permissions.
-    let rawEnrollments: any[] = [];
+    let rawEnrollmentsBySource: Record<string, any[]> = {};
     let rawSubmissions: any[] = [];
     let courseList: any[] = [];
+    let courseEnrollmentUnsubs: (() => void)[] = [];
 
     const recomputeStudents = () => {
       const courseIds = new Set(courseList.map((c) => c.id));
+      const rawEnrollments = Object.values(rawEnrollmentsBySource).flat();
 
       const enrolled = rawEnrollments
         .filter((e) => e.instructorId === instructorId || (e.programId && courseIds.has(e.programId)))
@@ -205,6 +207,15 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
     // 2. Sync Instructor's Courses
     unsubs.push(onSnapshot(query(programsCollection, where("instructorId", "==", instructorId)), (snap) => {
       courseList = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      courseEnrollmentUnsubs.forEach(unsub => unsub());
+      courseEnrollmentUnsubs = courseList.map((course) =>
+        onSnapshot(query(enrollmentsCollection, where("programId", "==", course.id)), (courseSnap) => {
+          rawEnrollmentsBySource[`course:${course.id}`] = courseSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+          recomputeStudents();
+        }, (error) => {
+          console.error("Instructor course enrollment subscription error:", error);
+        })
+      );
       set({ 
         courses: courseList.map((data: any) => ({
           ...data,
@@ -221,7 +232,7 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
 
     // 3. Sync only this instructor's enrollments
     unsubs.push(onSnapshot(query(enrollmentsCollection, where("instructorId", "==", instructorId)), (snap) => {
-      rawEnrollments = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      rawEnrollmentsBySource.instructor = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       recomputeStudents();
     }, (error) => {
       console.error("Instructor enrollments subscription error:", error);
@@ -280,7 +291,10 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       });
     }));
 
-    return () => unsubs.forEach(unsub => unsub());
+    return () => {
+      courseEnrollmentUnsubs.forEach(unsub => unsub());
+      unsubs.forEach(unsub => unsub());
+    };
   }
 }));
 
