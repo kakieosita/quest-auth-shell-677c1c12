@@ -29,7 +29,6 @@ import {
   assignmentsCollection,
   submissionsCollection,
   timetableCollection,
-  studentsCollection
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
@@ -160,22 +159,21 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       if (snap.exists()) set({ profile: snap.data() as any });
     }));
 
-    // Helpers to merge enrollments + applicants (students whose
-    // interestedCourse matches one of this instructor's course titles)
-    let rawEnrollments: any[] = [];
-    let rawApplicants: any[] = [];
+    // Helpers to merge enrollments + submitted students. All reads must be
+    // scoped to this instructor to satisfy Firestore permissions.
+    let rawEnrollmentsBySource: Record<string, any[]> = {};
+    let rawSubmissions: any[] = [];
     let courseList: any[] = [];
+    let courseEnrollmentUnsubs: (() => void)[] = [];
 
     const recomputeStudents = () => {
-      const courseTitles = new Set(courseList.map((c) => (c.title || "").toLowerCase()));
       const courseIds = new Set(courseList.map((c) => c.id));
-      const titleToId: Record<string, string> = {};
-      courseList.forEach((c) => { titleToId[(c.title || "").toLowerCase()] = c.id; });
+      const rawEnrollments = Object.values(rawEnrollmentsBySource).flat();
 
       const enrolled = rawEnrollments
-        .filter((e) => !e.programId || courseIds.has(e.programId))
+        .filter((e) => e.instructorId === instructorId || (e.programId && courseIds.has(e.programId)))
         .map((data) => ({
-          id: data.id,
+          id: data.studentId || data.id,
           name: data.studentName || "Unknown Student",
           email: data.studentEmail || "No Email",
           courseId: data.programId || "",
@@ -184,32 +182,40 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
           grade: data.grade || "",
         }));
 
-      const enrolledStudentIds = new Set(enrolled.map((e) => (e as any).id));
-      // Also dedupe by underlying studentId in case enrollment doc id != studentId
-      const enrolledByStudentId = new Set(
-        rawEnrollments
-          .filter((e) => e.programId && courseIds.has(e.programId))
-          .map((e) => e.studentId)
-      );
-      const applicants = rawApplicants
-        .filter((s) => s.interestedCourse && courseTitles.has(String(s.interestedCourse).toLowerCase()))
-        .filter((s) => !enrolledStudentIds.has(s.id) && !enrolledByStudentId.has(s.id))
+      const enrolledStudentIds = new Set(enrolled.map((e) => e.id).filter(Boolean));
+      const seenSubmitters = new Set<string>();
+      const submitters = rawSubmissions
+        .filter((s) => s.studentId && !enrolledStudentIds.has(s.studentId))
+        .filter((s) => {
+          if (seenSubmitters.has(s.studentId)) return false;
+          seenSubmitters.add(s.studentId);
+          return true;
+        })
         .map((s) => ({
-          id: s.id,
-          name: s.displayName || s.email || "Applicant",
-          email: s.email || "",
-          courseId: titleToId[String(s.interestedCourse).toLowerCase()] || "",
+          id: s.studentId,
+          name: s.studentName || "Student",
+          email: s.studentEmail || "",
+          courseId: s.programId || courseList.find((c) => c.title === s.courseName || c.title === s.programName)?.id || "",
           progress: 0,
-          lastActive: "Applied",
-          grade: "",
+          lastActive: s.submittedAt?.toDate?.().toLocaleDateString() || s.submittedAt || "Submitted",
+          grade: s.grade || "",
         }));
 
-      set({ students: [...enrolled, ...applicants] as any });
+      set({ students: [...enrolled, ...submitters] as any });
     };
 
     // 2. Sync Instructor's Courses
     unsubs.push(onSnapshot(query(programsCollection, where("instructorId", "==", instructorId)), (snap) => {
       courseList = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      courseEnrollmentUnsubs.forEach(unsub => unsub());
+      courseEnrollmentUnsubs = courseList.map((course) =>
+        onSnapshot(query(enrollmentsCollection, where("programId", "==", course.id)), (courseSnap) => {
+          rawEnrollmentsBySource[`course:${course.id}`] = courseSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+          recomputeStudents();
+        }, (error) => {
+          console.error("Instructor course enrollment subscription error:", error);
+        })
+      );
       set({ 
         courses: courseList.map((data: any) => ({
           ...data,
@@ -224,16 +230,12 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       recomputeStudents();
     }));
 
-    // 3a. Sync Enrollments
-    unsubs.push(onSnapshot(enrollmentsCollection, (snap) => {
-      rawEnrollments = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    // 3. Sync only this instructor's enrollments
+    unsubs.push(onSnapshot(query(enrollmentsCollection, where("instructorId", "==", instructorId)), (snap) => {
+      rawEnrollmentsBySource.instructor = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       recomputeStudents();
-    }));
-
-    // 3b. Sync Student Applicants (signups whose interestedCourse matches)
-    unsubs.push(onSnapshot(studentsCollection, (snap) => {
-      rawApplicants = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      recomputeStudents();
+    }, (error) => {
+      console.error("Instructor enrollments subscription error:", error);
     }));
 
     // 4. Sync Announcements
@@ -260,11 +262,13 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
 
     // 6. Sync Submissions
     unsubs.push(onSnapshot(query(submissionsCollection, where("instructorId", "==", instructorId)), (snap) => {
+      rawSubmissions = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      recomputeStudents();
       set({ 
-        submissions: snap.docs.map(d => ({ 
-          ...d.data(), 
+        submissions: rawSubmissions.map(d => ({ 
+          ...d, 
           id: d.id,
-          submittedAt: (d.data().submittedAt as any)?.toDate?.().toLocaleDateString() || d.data().submittedAt
+          submittedAt: (d.submittedAt as any)?.toDate?.().toLocaleDateString() || d.submittedAt
         } as any)) 
       });
     }));
@@ -287,7 +291,10 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       });
     }));
 
-    return () => unsubs.forEach(unsub => unsub());
+    return () => {
+      courseEnrollmentUnsubs.forEach(unsub => unsub());
+      unsubs.forEach(unsub => unsub());
+    };
   }
 }));
 
