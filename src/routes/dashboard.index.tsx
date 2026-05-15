@@ -26,6 +26,15 @@ function DashboardOverview() {
 
   const avgGrade = (grades.reduce((sum, g) => sum + g.score, 0) / (grades.length || 1)).toFixed(0);
 
+  const formatDate = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value?.toDate === "function") return value.toDate().toLocaleDateString();
+    if (typeof value?.seconds === "number") return new Date(value.seconds * 1000).toLocaleDateString();
+    return String(value);
+  };
+
   const stats = [
     { label: "Enrolled courses", value: courses.length, icon: BookOpen, color: "text-primary bg-accent" },
     { label: "Overall progress", value: `${overall}%`, icon: TrendingUp, color: "text-primary bg-accent" },
@@ -162,7 +171,7 @@ function DashboardOverview() {
                    <div key={an.id} className="p-4 rounded-2xl border border-border bg-card shadow-sm">
                       <div className="flex justify-between items-start mb-2">
                          <h3 className="font-semibold text-sm">{an.title}</h3>
-                         <span className="text-[10px] text-muted-foreground uppercase">{an.date}</span>
+                         <span className="text-[10px] text-muted-foreground uppercase">{formatDate(an.date)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">
                          {an.content}
