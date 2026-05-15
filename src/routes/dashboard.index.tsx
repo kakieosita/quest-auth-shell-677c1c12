@@ -26,6 +26,15 @@ function DashboardOverview() {
 
   const avgGrade = (grades.reduce((sum, g) => sum + g.score, 0) / (grades.length || 1)).toFixed(0);
 
+  const formatDate = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value?.toDate === "function") return value.toDate().toLocaleDateString();
+    if (typeof value?.seconds === "number") return new Date(value.seconds * 1000).toLocaleDateString();
+    return String(value);
+  };
+
   const stats = [
     { label: "Enrolled courses", value: courses.length, icon: BookOpen, color: "text-primary bg-accent" },
     { label: "Overall progress", value: `${overall}%`, icon: TrendingUp, color: "text-primary bg-accent" },
