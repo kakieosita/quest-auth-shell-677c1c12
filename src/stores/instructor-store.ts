@@ -192,11 +192,15 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
 
     await Promise.all(promises);
 
-    // Mark session as attendance_submitted in timetable
-    await updateDoc(doc(timetableCollection, sessionId), {
-      attendanceSubmitted: true,
-      status: 'completed'
-    } as any);
+    // Mark session as attendance_submitted in timetable (merge to avoid errors if doc missing)
+    try {
+      await setDoc(doc(timetableCollection, sessionId), {
+        attendanceSubmitted: true,
+        status: 'completed'
+      } as any, { merge: true });
+    } catch (err) {
+      console.error("Failed to update timetable submission status:", err);
+    }
   },
   initialize: (instructorId) => {
     const unsubs: (() => void)[] = [];
