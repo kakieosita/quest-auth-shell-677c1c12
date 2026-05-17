@@ -88,16 +88,25 @@ function AttendancePage() {
             <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Select Session</h2>
                <div className="space-y-2">
-                  {schedules.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedSession(s.id)}
-                      className={`w-full text-left p-3 rounded-xl border transition ${selectedSession === s.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border bg-background hover:bg-muted/50'}`}
-                    >
-                       <p className="text-xs font-bold truncate">{s.title}</p>
-                       <p className="text-[10px] text-muted-foreground mt-1">{s.date} · {s.time}</p>
-                    </button>
-                  ))}
+                  {schedules.length === 0 && (
+                    <Link to="/instructor/schedule" className="block rounded-xl border border-dashed border-border p-4 text-center text-[11px] text-muted-foreground hover:bg-muted/30 transition">
+                      No sessions yet. <span className="font-bold text-primary">Schedule one →</span>
+                    </Link>
+                  )}
+                  {schedules.map((s) => {
+                    const course = courses.find(c => c.id === s.courseId);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedSession(s.id)}
+                        className={`w-full text-left p-3 rounded-xl border transition ${selectedSession === s.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border bg-background hover:bg-muted/50'}`}
+                      >
+                         <p className="text-xs font-bold truncate">{s.title}</p>
+                         <p className="text-[10px] text-muted-foreground mt-1 truncate">{course?.title}</p>
+                         <p className="text-[10px] text-muted-foreground mt-0.5">{s.date} · {s.time}</p>
+                      </button>
+                    );
+                  })}
                </div>
             </div>
 
