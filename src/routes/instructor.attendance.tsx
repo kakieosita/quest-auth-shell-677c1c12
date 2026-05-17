@@ -231,22 +231,22 @@ function AttendancePage() {
                                </td>
                               <td className="py-4 text-right">
                                  <div className="flex items-center justify-end gap-2">
-                                    <button 
+                                    <button
                                       onClick={async () => {
                                         await markAttendance(selectedSession, s.id, 'present');
                                         toast.success(`Marked ${s.name} as present`);
                                       }}
-                                      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-success hover:bg-success/10 transition"
+                                      className={`h-8 w-8 rounded-lg border flex items-center justify-center transition ${status === 'present' ? 'border-success bg-success text-success-foreground' : 'border-border bg-card text-success hover:bg-success/10'}`}
                                       title="Mark Present"
                                     >
                                        <Check className="h-4 w-4" />
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={async () => {
                                         await markAttendance(selectedSession, s.id, 'absent');
                                         toast.success(`Marked ${s.name} as absent`);
                                       }}
-                                      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-destructive hover:bg-destructive/10 transition"
+                                      className={`h-8 w-8 rounded-lg border flex items-center justify-center transition ${status === 'absent' ? 'border-destructive bg-destructive text-destructive-foreground' : 'border-border bg-card text-destructive hover:bg-destructive/10'}`}
                                       title="Mark Absent"
                                     >
                                        <X className="h-4 w-4" />
