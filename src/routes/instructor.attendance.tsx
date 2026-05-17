@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Check, X, Search, Users, Calendar, Clock, Filter, QrCode } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Check, X, Search, Users, Calendar, Clock, QrCode, UserCheck, UserX, Clock3 } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { toast } from "sonner";
 
@@ -16,18 +16,58 @@ function AttendancePage() {
   const markAttendance = useInstructorStore((s) => s.markAttendance);
   const submitAttendance = useInstructorStore((s) => s.submitAttendance);
 
-  const [selectedSession, setSelectedSession] = useState(schedules[0]?.id || "");
+  const [selectedSession, setSelectedSession] = useState<string>("");
   const [query, setQuery] = useState("");
 
-  const currentSession = schedules.find(s => s.id === selectedSession);
-  const sessionCourse = courses.find(c => c.id === currentSession?.courseId);
-  
-  // Filter students by course of the selected session
-  const sessionStudents = students.filter(s => s.courseId === currentSession?.courseId);
-  const filteredStudents = sessionStudents.filter(s => 
-    s.name.toLowerCase().includes(query.toLowerCase()) || 
-    s.email.toLowerCase().includes(query.toLowerCase())
+  useEffect(() => {
+    if (!selectedSession && schedules.length > 0) {
+      setSelectedSession(schedules[0].id);
+    } else if (selectedSession && !schedules.find((s) => s.id === selectedSession)) {
+      setSelectedSession(schedules[0]?.id || "");
+    }
+  }, [schedules, selectedSession]);
+
+  const currentSession = schedules.find((s) => s.id === selectedSession);
+  const sessionCourse = courses.find((c) => c.id === currentSession?.courseId);
+
+  const sessionStudents = useMemo(() => {
+    if (!currentSession) return [];
+    const scoped = students.filter((s) => s.courseId === currentSession.courseId);
+    return scoped.length > 0 ? scoped : students;
+  }, [students, currentSession]);
+
+  const filteredStudents = sessionStudents.filter(
+    (s) =>
+      s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.email.toLowerCase().includes(query.toLowerCase())
   );
+
+  const stats = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    sessionStudents.forEach((s) => {
+      const rec = attendance.find((a) => a.sessionId === selectedSession && a.studentId === s.id);
+      if (rec?.status === "present") present++;
+      else if (rec?.status === "absent") absent++;
+    });
+    return { present, absent, pending: sessionStudents.length - present - absent };
+  }, [sessionStudents, attendance, selectedSession]);
+
+  const markAll = async (status: "present" | "absent") => {
+    if (!selectedSession || sessionStudents.length === 0) return;
+    const loading = toast.loading(`Marking everyone ${status}...`);
+    try {
+      await Promise.all(
+        sessionStudents.map((s) => markAttendance(selectedSession, s.id, status))
+      );
+      toast.dismiss(loading);
+      toast.success(`Marked ${sessionStudents.length} students as ${status}`);
+    } catch (e) {
+      toast.dismiss(loading);
+      toast.error("Failed to mark all");
+      console.error(e);
+    }
+  };
 
   return (
     <div className="space-y-6">
