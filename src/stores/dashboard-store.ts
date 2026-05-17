@@ -5,8 +5,9 @@ import {
   type Certificate, 
   type Activity, 
   type Quiz, 
-  type Grade, 
-  type Attendance, 
+  type Grade,
+  type Attendance,
+  type AttendanceHistory,
   type Invoice, 
   type ForumPost, 
   type Event, 
@@ -35,6 +36,9 @@ import {
   eventsCollection,
   usersCollection,
   submissionsCollection,
+  attendanceCollection,
+  timetableCollection,
+  forumPostsCollection,
 } from "@/lib/db/collections";
 import { User as DbUser } from "@/lib/db/schema";
 
@@ -49,6 +53,7 @@ type DashboardState = {
   quizzes: Quiz[];
   grades: Grade[];
   attendance: Attendance[];
+  attendanceHistory: AttendanceHistory[];
   invoices: Invoice[];
   forumPosts: ForumPost[];
   events: Event[];
@@ -69,8 +74,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   activity: [],
   user: {} as any,
   quizzes: [],
+  timetable: [],
   grades: [],
   attendance: [],
+  attendanceHistory: [],
   invoices: [],
   forumPosts: [],
   events: [],
@@ -140,6 +147,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     let allPrograms: any[] = [];
     let enrolledProgramIds: string[] = [];
     let allAssignments: any[] = [];
+    let allAttendance: any[] = [];
+    let allTimetable: any[] = [];
 
     const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
 
@@ -209,7 +218,62 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set({ courses: courses as any });
     };
 
-    const recomputeAll = () => { recomputeAssignments(); recomputeCourses(); };
+    const recomputeAttendance = () => {
+      const titleToId: Record<string, string> = {};
+      allPrograms.forEach((p) => { titleToId[normalize(p.title)] = p.id; });
+      const idToTitle: Record<string, string> = {};
+      allPrograms.forEach((p) => { idToTitle[p.id] = p.title; });
+
+      const interestedId = getInterestedProgramId(titleToId);
+      const studentProgramIds = new Set<string>([...enrolledProgramIds, ...(interestedId ? [interestedId] : [])]);
+
+      const attendanceByProgram: Record<string, { attended: number, total: number }> = {};
+      
+      enrolledProgramIds.forEach(pid => {
+        const totalClasses = allTimetable.filter(t => t.programId === pid).length;
+        attendanceByProgram[pid] = { attended: 0, total: totalClasses };
+      });
+
+      allAttendance.forEach(a => {
+        if (a.status === 'present' && attendanceByProgram[a.programId]) {
+          attendanceByProgram[a.programId].attended++;
+        }
+      });
+
+      const attendanceSummary = Object.entries(attendanceByProgram).map(([pid, data]) => ({
+        id: pid,
+        course: idToTitle[pid] || "Unknown Course",
+        totalClasses: Math.max(data.total, 1),
+        attendedClasses: data.attended
+      }));
+
+      const history: AttendanceHistory[] = allTimetable
+        .filter(s => studentProgramIds.has(s.programId))
+        .map(session => {
+          const record = allAttendance.find(a => a.sessionId === session.id);
+          return {
+            id: session.id,
+            courseId: session.programId,
+            courseName: idToTitle[session.programId] || "Unknown Course",
+            sessionTitle: session.title,
+            date: session.date,
+            status: record?.status || 'pending'
+          };
+        })
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      set({ 
+        attendance: attendanceSummary as any,
+        attendanceHistory: history as any
+      });
+    };
+
+    const recomputeAll = () => { 
+      recomputeAssignments(); 
+      recomputeCourses(); 
+      recomputeAttendance(); 
+      syncForum();
+    };
 
     // 1. Sync User Profile
     unsubs.push(onSnapshot(doc(usersCollection, userId), (snap) => {
@@ -253,6 +317,59 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set({ events: snap.docs.map(d => ({ ...d.data(), id: d.id } as any)) });
     }));
 
-    return () => unsubs.forEach(unsub => unsub());
+    // 7. Sync Attendance for this student
+    unsubs.push(onSnapshot(query(attendanceCollection, where("studentId", "==", userId)), (snap) => {
+      allAttendance = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      recomputeAttendance();
+    }));
+
+    // 8. Sync Timetable (to count total classes)
+    unsubs.push(onSnapshot(timetableCollection, (snap) => {
+      allTimetable = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      recomputeAttendance();
+    }));
+
+    // 9. Sync Forum Posts for student's programs
+    let forumUnsub: (() => void) | null = null;
+    function syncForum() {
+      if (forumUnsub) forumUnsub();
+      
+      const titleToId: Record<string, string> = {};
+      allPrograms.forEach((p) => { titleToId[normalize(p.title)] = p.id; });
+      const interestedId = getInterestedProgramId(titleToId);
+      const pids = Array.from(new Set([...enrolledProgramIds, ...(interestedId ? [interestedId] : [])])).filter(Boolean);
+      
+      if (pids.length === 0) {
+        set({ forumPosts: [] });
+        return;
+      }
+      
+      const chunks: string[][] = [];
+      for (let i = 0; i < pids.length; i += 10) chunks.push(pids.slice(i, i + 10));
+      
+      const subs = chunks.map(chunk => 
+        onSnapshot(query(forumPostsCollection, where("courseId", "in", chunk)), (snap) => {
+          set({
+            forumPosts: snap.docs.map(d => {
+              const data = d.data();
+              return {
+                id: d.id,
+                author: data.authorName || "User",
+                title: data.title || "Untitled",
+                category: data.courseName || "General",
+                replies: 0,
+                lastActive: data.createdAt?.toDate?.().toLocaleDateString() || "Recent"
+              } as any;
+            })
+          });
+        })
+      );
+      forumUnsub = () => subs.forEach(s => s());
+    }
+
+    return () => {
+      unsubs.forEach(unsub => unsub());
+      if (forumUnsub) forumUnsub();
+    };
   }
 }));

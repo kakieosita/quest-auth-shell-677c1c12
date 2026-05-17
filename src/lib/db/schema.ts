@@ -202,3 +202,13 @@ export interface Announcement {
   authorId: string;
   targetRole?: UserRole | "all";
 }
+export interface Attendance {
+  id: string;
+  sessionId: string;
+  studentId: string;
+  studentName?: string;
+  programId: string;
+  instructorId: string;
+  status: "present" | "absent";
+  date: Timestamp;
+}

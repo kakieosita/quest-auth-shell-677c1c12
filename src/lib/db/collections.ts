@@ -12,7 +12,8 @@ import {
   Activity,
   Assignment,
   Certificate,
-  Announcement
+  Announcement,
+  Attendance
 } from "./schema";
 
 // Helper to create a typed collection reference
@@ -38,6 +39,7 @@ export const instructorsCollection = createCollection<any>("instructors");
 export const submissionsCollection = createCollection<any>("submissions");
 export const cohortsCollection = createCollection<any>("cohorts");
 export const timetableCollection = createCollection<any>("timetable");
+export const attendanceCollection = createCollection<Attendance>("attendance");
 export const forumPostsCollection = createCollection<any>("forumPosts");
 export const forumRepliesCollection = createCollection<any>("forumReplies");
 export const messagesCollection = createCollection<any>("messages");

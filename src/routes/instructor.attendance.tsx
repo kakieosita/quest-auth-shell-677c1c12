@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check, X, Search, Users, Calendar, Clock, Filter, QrCode } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/instructor/attendance")({
   component: AttendancePage,
@@ -11,7 +12,9 @@ function AttendancePage() {
   const schedules = useInstructorStore((s) => s.schedules);
   const students = useInstructorStore((s) => s.students);
   const courses = useInstructorStore((s) => s.courses);
+  const attendance = useInstructorStore((s) => s.attendance);
   const markAttendance = useInstructorStore((s) => s.markAttendance);
+  const submitAttendance = useInstructorStore((s) => s.submitAttendance);
 
   const [selectedSession, setSelectedSession] = useState(schedules[0]?.id || "");
   const [query, setQuery] = useState("");
@@ -111,44 +114,59 @@ function AttendancePage() {
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-border">
-                        {filteredStudents.map((s) => (
-                          <tr key={s.id} className="group">
-                             <td className="py-4">
-                                <div className="flex items-center gap-3">
-                                   <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
-                                      {s.name.split(' ').map(n => n[0]).join('')}
-                                   </div>
-                                   <div>
-                                      <p className="font-semibold text-sm">{s.name}</p>
-                                      <p className="text-[10px] text-muted-foreground">{s.email}</p>
-                                   </div>
-                                </div>
-                             </td>
-                             <td className="py-4 text-center">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground">
-                                   Pending
-                                </span>
-                             </td>
-                             <td className="py-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                   <button 
-                                     onClick={() => markAttendance(selectedSession, s.id, 'present')}
-                                     className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-success hover:bg-success/10 transition"
-                                     title="Mark Present"
-                                   >
-                                      <Check className="h-4 w-4" />
-                                   </button>
-                                   <button 
-                                     onClick={() => markAttendance(selectedSession, s.id, 'absent')}
-                                     className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-destructive hover:bg-destructive/10 transition"
-                                     title="Mark Absent"
-                                   >
-                                      <X className="h-4 w-4" />
-                                   </button>
-                                </div>
-                             </td>
-                          </tr>
-                        ))}
+                        {filteredStudents.map((s) => {
+                          const record = attendance.find(a => a.sessionId === selectedSession && a.studentId === s.id);
+                          const status = record?.status || 'pending';
+                          
+                          return (
+                            <tr key={s.id} className="group">
+                               <td className="py-4">
+                                  <div className="flex items-center gap-3">
+                                     <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
+                                        {s.name.split(' ').map(n => n[0]).join('')}
+                                     </div>
+                                     <div>
+                                        <p className="font-semibold text-sm">{s.name}</p>
+                                        <p className="text-[10px] text-muted-foreground">{s.email}</p>
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="py-4 text-center">
+                                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    status === 'present' ? 'bg-success/10 text-success' : 
+                                    status === 'absent' ? 'bg-destructive/10 text-destructive' : 
+                                    'bg-muted text-muted-foreground'
+                                  }`}>
+                                     {status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </span>
+                               </td>
+                              <td className="py-4 text-right">
+                                 <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                      onClick={async () => {
+                                        await markAttendance(selectedSession, s.id, 'present');
+                                        toast.success(`Marked ${s.name} as present`);
+                                      }}
+                                      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-success hover:bg-success/10 transition"
+                                      title="Mark Present"
+                                    >
+                                       <Check className="h-4 w-4" />
+                                    </button>
+                                    <button 
+                                      onClick={async () => {
+                                        await markAttendance(selectedSession, s.id, 'absent');
+                                        toast.success(`Marked ${s.name} as absent`);
+                                      }}
+                                      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-destructive hover:bg-destructive/10 transition"
+                                      title="Mark Absent"
+                                    >
+                                       <X className="h-4 w-4" />
+                                    </button>
+                                 </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                         {filteredStudents.length === 0 && (
                           <tr>
                              <td colSpan={3} className="py-12 text-center text-sm text-muted-foreground italic">
@@ -162,7 +180,22 @@ function AttendancePage() {
 
                <div className="mt-6 flex items-center justify-between pt-6 border-t border-border">
                   <p className="text-xs text-muted-foreground">Showing {filteredStudents.length} of {sessionStudents.length} students</p>
-                  <button className="rounded-xl bg-gradient-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-soft hover:shadow-glow transition">
+                  <button 
+                    onClick={async () => {
+                      if (!selectedSession) return;
+                      const loadingToast = toast.loading("Submitting attendance sheet...");
+                      try {
+                        await submitAttendance(selectedSession);
+                        toast.dismiss(loadingToast);
+                        toast.success("Attendance sheet submitted successfully");
+                      } catch (error) {
+                        toast.dismiss(loadingToast);
+                        toast.error("Failed to submit attendance sheet");
+                        console.error(error);
+                      }
+                    }}
+                    className="rounded-xl bg-gradient-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-soft hover:shadow-glow transition"
+                  >
                      Submit Attendance Sheet
                   </button>
                </div>

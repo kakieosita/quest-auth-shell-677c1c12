@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         try {
           const userDoc = await getDoc(doc(usersCollection, firebaseUser.uid));
           if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
+            const userData = { ...userDoc.data(), id: userDoc.id } as User;
             if (userData.status === "Suspended" || userData.status === "Inactive") {
               await signOut(auth);
               sessionStorage.removeItem(LOCAL_USER_KEY);

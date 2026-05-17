@@ -204,6 +204,15 @@ export type Attendance = {
   attendedClasses: number;
 };
 
+export type AttendanceHistory = {
+  id: string;
+  courseId: string;
+  courseName: string;
+  sessionTitle: string;
+  date: string;
+  status: 'present' | 'absent' | 'pending';
+};
+
 export const mockAttendance: Attendance[] = [
   { id: "at1", course: "Full-Stack Web Development", totalClasses: 24, attendedClasses: 22 },
   { id: "at2", course: "Data Science Foundations", totalClasses: 20, attendedClasses: 15 },

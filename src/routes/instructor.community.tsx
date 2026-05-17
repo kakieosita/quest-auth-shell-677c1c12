@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Search, MessageCircle, Reply, Plus, Send, X, Loader2 } from "lucide-react";
+import { MessageSquare, Search, MessageCircle, Reply, Plus, Send, X, Loader2, Trash2 } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -10,6 +10,9 @@ import {
   query,
   serverTimestamp,
   where,
+  doc,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import {
   forumPostsCollection,
@@ -110,11 +113,18 @@ function CommunityPage() {
   useEffect(() => {
     if (!openPost) return;
     const unsub = onSnapshot(
-      query(forumRepliesCollection, where("postId", "==", openPost), orderBy("createdAt", "asc")),
+      query(forumRepliesCollection, where("postId", "==", openPost)),
       (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        // Sort locally to avoid indexing requirements
+        docs.sort((a, b) => {
+          const ta = a.createdAt?.toMillis?.() || 0;
+          const tb = b.createdAt?.toMillis?.() || 0;
+          return ta - tb;
+        });
         setReplies((prev) => ({
           ...prev,
-          [openPost]: snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })),
+          [openPost]: docs,
         }));
       },
       (err) => console.error("Replies subscription error:", err),
@@ -174,9 +184,52 @@ function CommunityPage() {
         content: text,
         createdAt: serverTimestamp(),
       });
+      // Increment repliesCount on the post doc
+      // Note: In a real app, use a transaction or cloud function for accuracy
+      try {
+        const postRef = doc(forumPostsCollection, postId);
+        await updateDoc(postRef, {
+          repliesCount: (posts.find(p => p.id === postId) as any)?.repliesCount + 1 || 1
+        });
+      } catch (err) {
+        console.error("Failed to update reply count:", err);
+      }
       setReplyText((p) => ({ ...p, [postId]: "" }));
     } catch (e: any) {
       toast.error(e?.message || "Failed to reply");
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    if (!window.confirm("Are you sure you want to delete this discussion?")) return;
+    try {
+      await deleteDoc(doc(forumPostsCollection, postId));
+      toast.success("Discussion deleted");
+      if (openPost === postId) setOpenPost(null);
+    } catch (e: any) {
+      toast.error("Failed to delete post");
+    }
+  };
+
+  const deleteReply = async (replyId: string, postId: string) => {
+    if (!window.confirm("Delete this reply?")) return;
+    try {
+      await deleteDoc(doc(forumRepliesCollection, replyId));
+      
+      // Decrement repliesCount
+      try {
+        const postRef = doc(forumPostsCollection, postId);
+        const post = posts.find(p => p.id === postId);
+        await updateDoc(postRef, {
+          repliesCount: Math.max(0, ((post as any)?.repliesCount || 0) - 1)
+        });
+      } catch (err) {
+        console.error("Failed to update reply count:", err);
+      }
+      
+      toast.success("Reply deleted");
+    } catch (e: any) {
+      toast.error("Failed to delete reply");
     }
   };
 
@@ -259,10 +312,18 @@ function CommunityPage() {
                       <span>{formatTime(d.createdAt)}</span>
                       <span>·</span>
                       <span className="flex items-center gap-1">
-                        <MessageCircle className="h-3 w-3" /> {postReplies.length} replies
+                        <MessageCircle className="h-3 w-3" /> {(d as any).repliesCount || 0} replies
                       </span>
                     </div>
                   </div>
+                  {user?.id === d.authorId && (
+                    <button
+                      onClick={() => deletePost(d.id)}
+                      className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <div className="mt-4">
                   <button
@@ -277,10 +338,20 @@ function CommunityPage() {
                   <div className="mt-4 space-y-3 border-t border-border pt-4">
                     {postReplies.map((r) => (
                       <div key={r.id} className="rounded-xl bg-muted/40 p-3">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-bold">{r.authorName}</span>
-                          <span className="text-muted-foreground">·</span>
-                          <span className="text-muted-foreground">{formatTime(r.createdAt)}</span>
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold">{r.authorName}</span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className="text-muted-foreground">{formatTime(r.createdAt)}</span>
+                          </div>
+                          {user?.id === r.authorId && (
+                            <button
+                              onClick={() => deleteReply(r.id, d.id)}
+                              className="text-muted-foreground hover:text-destructive transition"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                         <p className="mt-1 text-sm">{r.content}</p>
                       </div>

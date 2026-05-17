@@ -12,13 +12,155 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/stores/auth-store";
+import { addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { forumRepliesCollection, forumPostsCollection } from "@/lib/db/collections";
+import { toast } from "sonner";
+import { Send, X, Loader2, Reply, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/community")({
   component: DashboardCommunity,
 });
 
 function DashboardCommunity() {
+  const { user } = useAuthStore();
   const forumPosts = useDashboardStore((s) => s.forumPosts);
+  const [openPost, setOpenPost] = useState<string | null>(null);
+  const [replies, setReplies] = useState<Record<string, any[]>>({});
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newContent, setNewContent] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
+  
+  const enrolledCourses = useDashboardStore((s) => s.courses);
+
+  // Subscribe to replies for the open post
+  useEffect(() => {
+    if (!openPost) return;
+    const unsub = onSnapshot(
+      query(forumRepliesCollection, where("postId", "==", openPost)),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        // Sort locally to avoid indexing requirements
+        docs.sort((a, b) => {
+          const ta = a.createdAt?.toMillis?.() || 0;
+          const tb = b.createdAt?.toMillis?.() || 0;
+          return ta - tb;
+        });
+        setReplies((prev) => ({
+          ...prev,
+          [openPost]: docs,
+        }));
+      },
+      (err) => console.error("Replies subscription error:", err),
+    );
+    return () => unsub();
+  }, [openPost]);
+
+  const createPost = async () => {
+    if (!user || !selectedCourse || !newTitle.trim() || !newContent.trim()) {
+      toast.error("Fill all fields and pick a course");
+      return;
+    }
+    const course = enrolledCourses.find((c) => c.id === selectedCourse);
+    setSubmitting(true);
+    try {
+      await addDoc(forumPostsCollection, {
+        courseId: selectedCourse,
+        courseName: course?.title || "",
+        title: newTitle.trim(),
+        content: newContent.trim(),
+        authorId: user.id,
+        authorName: user.displayName || user.email || "Student",
+        authorRole: user.role,
+        createdAt: serverTimestamp(),
+        repliesCount: 0,
+        tags: ["discussion"],
+      });
+      setNewTitle("");
+      setNewContent("");
+      setShowNew(false);
+      toast.success("Topic posted");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to post");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const sendReply = async (postId: string) => {
+    if (!user) return;
+    const text = (replyText[postId] || "").trim();
+    if (!text) return;
+    setSubmitting(true);
+    try {
+      await addDoc(forumRepliesCollection, {
+        postId,
+        authorId: user.id,
+        authorName: user.displayName || user.email || "Student",
+        authorRole: user.role,
+        content: text,
+        createdAt: serverTimestamp(),
+      });
+      // Increment repliesCount on the post doc
+      try {
+        const postRef = doc(forumPostsCollection, postId);
+        await updateDoc(postRef, {
+          repliesCount: (forumPosts.find(p => p.id === postId) as any)?.repliesCount + 1 || 1
+        });
+      } catch (err) {
+        console.error("Failed to update reply count:", err);
+      }
+      setReplyText((p) => ({ ...p, [postId]: "" }));
+      toast.success("Reply posted");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to reply");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    if (!window.confirm("Are you sure you want to delete this discussion?")) return;
+    try {
+      await deleteDoc(doc(forumPostsCollection, postId));
+      toast.success("Discussion deleted");
+      if (openPost === postId) setOpenPost(null);
+    } catch (e: any) {
+      toast.error("Failed to delete post");
+    }
+  };
+
+  const deleteReply = async (replyId: string, postId: string) => {
+    if (!window.confirm("Delete this reply?")) return;
+    try {
+      await deleteDoc(doc(forumRepliesCollection, replyId));
+      
+      // Decrement repliesCount
+      try {
+        const postRef = doc(forumPostsCollection, postId);
+        const post = forumPosts.find(p => p.id === postId);
+        await updateDoc(postRef, {
+          repliesCount: Math.max(0, ((post as any)?.repliesCount || 0) - 1)
+        });
+      } catch (err) {
+        console.error("Failed to update reply count:", err);
+      }
+      
+      toast.success("Reply deleted");
+    } catch (e: any) {
+      toast.error("Failed to delete reply");
+    }
+  };
+
+  const formatTime = (ts: any) => {
+    if (!ts) return "";
+    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -47,33 +189,111 @@ function DashboardCommunity() {
         <TabsContent value="forums" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Recent Discussions</h2>
-            <Button>
+            <Button onClick={() => setShowNew(true)}>
               <PlusCircle className="mr-2 h-4 w-4" /> New Topic
             </Button>
           </div>
           
           <div className="grid gap-4">
-            {forumPosts.map((post) => (
-              <Card key={post.id} className="transition-all hover:bg-accent/40 cursor-pointer">
-                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{post.category}</Badge>
-                      <span className="text-xs text-muted-foreground">{post.lastActive}</span>
+            {forumPosts.map((post) => {
+              const isOpen = openPost === post.id;
+              const postReplies = replies[post.id] || [];
+              
+              return (
+                <Card key={post.id} className={`transition-all ${isOpen ? 'ring-2 ring-primary/20' : 'hover:bg-accent/40'}`}>
+                  <CardContent className="p-4 sm:p-6 space-y-4">
+                    <div 
+                      className="flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer"
+                      onClick={() => setOpenPost(isOpen ? null : post.id)}
+                    >
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{post.category}</Badge>
+                          <span className="text-xs text-muted-foreground">{post.lastActive}</span>
+                        </div>
+                        <h3 className="font-semibold text-lg">{post.title}</h3>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <UserCircle2 className="mr-1 h-4 w-4" />
+                          Posted by {post.author}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MessageSquare className="h-4 w-4" />
+                          <span className="text-sm font-medium">{(post as any).repliesCount || postReplies.length} replies</span>
+                        </div>
+                        {user?.id === (post as any).authorId && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deletePost(post.id);
+                            }}
+                            className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="font-semibold text-lg">{post.title}</h3>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <UserCircle2 className="mr-1 h-4 w-4" />
-                      Posted by {post.author}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="text-sm font-medium">{post.replies} replies</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {isOpen && (
+                      <div className="mt-4 space-y-4 border-t pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        {/* Replies List */}
+                        <div className="space-y-3">
+                          {postReplies.length === 0 ? (
+                            <p className="text-sm text-muted-foreground italic py-2">No replies yet. Be the first to respond!</p>
+                          ) : (
+                            postReplies.map((r) => (
+                              <div key={r.id} className="rounded-xl bg-muted/50 p-3 text-sm">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-xs">{r.authorName}</span>
+                                    <Badge variant="outline" className="text-[10px] h-4 px-1">{r.authorRole}</Badge>
+                                    <span className="text-[10px] text-muted-foreground ml-2">{formatTime(r.createdAt)}</span>
+                                  </div>
+                                  {user?.id === r.authorId && (
+                                    <button
+                                      onClick={() => deleteReply(r.id, post.id)}
+                                      className="text-muted-foreground hover:text-destructive transition"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-foreground/90">{r.content}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* Reply Input */}
+                        <div className="flex gap-2 pt-2">
+                          <input
+                            value={replyText[post.id] || ""}
+                            onChange={(e) => setReplyText((p) => ({ ...p, [post.id]: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                sendReply(post.id);
+                              }
+                            }}
+                            placeholder="Write a reply..."
+                            className="flex-1 rounded-xl border border-border bg-background px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                          <Button 
+                            size="icon" 
+                            onClick={() => sendReply(post.id)}
+                            disabled={submitting || !(replyText[post.id] || "").trim()}
+                          >
+                            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
 
@@ -117,6 +337,63 @@ function DashboardCommunity() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {showNew && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4"
+          onClick={() => setShowNew(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl font-bold">New Discussion</h2>
+              <button
+                onClick={() => setShowNew(false)}
+                className="rounded-lg p-1.5 hover:bg-muted text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Select course...</option>
+                {enrolledCourses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Topic title"
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <textarea
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                placeholder="What would you like to discuss?"
+                rows={5}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                onClick={createPost}
+                disabled={submitting}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:shadow-glow transition disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+                Post Topic
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
