@@ -138,18 +138,58 @@ function AttendancePage() {
          </div>
 
          <div className="lg:col-span-3 space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Present</p>
+                  <UserCheck className="h-4 w-4 text-success" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-success">{stats.present}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Absent</p>
+                  <UserX className="h-4 w-4 text-destructive" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-destructive">{stats.absent}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Pending</p>
+                  <Clock3 className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold">{stats.pending}</p>
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <h2 className="font-display text-lg font-semibold">Attendance List</h2>
-                  <div className="relative w-full sm:w-64">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="search"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search students..."
-                      className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
-                    />
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => markAll('present')}
+                      disabled={!currentSession || sessionStudents.length === 0}
+                      className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-[11px] font-bold text-success hover:bg-success/20 transition disabled:opacity-40"
+                    >
+                      All Present
+                    </button>
+                    <button
+                      onClick={() => markAll('absent')}
+                      disabled={!currentSession || sessionStudents.length === 0}
+                      className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] font-bold text-destructive hover:bg-destructive/20 transition disabled:opacity-40"
+                    >
+                      All Absent
+                    </button>
+                    <div className="relative flex-1 sm:w-56">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search students..."
+                        className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                      />
+                    </div>
                   </div>
                </div>
 
