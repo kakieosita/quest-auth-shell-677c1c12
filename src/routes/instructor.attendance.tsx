@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Check, X, Search, Users, Calendar, Clock, Filter, QrCode } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Check, X, Search, Users, Calendar, Clock, QrCode, UserCheck, UserX, Clock3 } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { toast } from "sonner";
 
@@ -16,18 +16,58 @@ function AttendancePage() {
   const markAttendance = useInstructorStore((s) => s.markAttendance);
   const submitAttendance = useInstructorStore((s) => s.submitAttendance);
 
-  const [selectedSession, setSelectedSession] = useState(schedules[0]?.id || "");
+  const [selectedSession, setSelectedSession] = useState<string>("");
   const [query, setQuery] = useState("");
 
-  const currentSession = schedules.find(s => s.id === selectedSession);
-  const sessionCourse = courses.find(c => c.id === currentSession?.courseId);
-  
-  // Filter students by course of the selected session
-  const sessionStudents = students.filter(s => s.courseId === currentSession?.courseId);
-  const filteredStudents = sessionStudents.filter(s => 
-    s.name.toLowerCase().includes(query.toLowerCase()) || 
-    s.email.toLowerCase().includes(query.toLowerCase())
+  useEffect(() => {
+    if (!selectedSession && schedules.length > 0) {
+      setSelectedSession(schedules[0].id);
+    } else if (selectedSession && !schedules.find((s) => s.id === selectedSession)) {
+      setSelectedSession(schedules[0]?.id || "");
+    }
+  }, [schedules, selectedSession]);
+
+  const currentSession = schedules.find((s) => s.id === selectedSession);
+  const sessionCourse = courses.find((c) => c.id === currentSession?.courseId);
+
+  const sessionStudents = useMemo(() => {
+    if (!currentSession) return [];
+    const scoped = students.filter((s) => s.courseId === currentSession.courseId);
+    return scoped.length > 0 ? scoped : students;
+  }, [students, currentSession]);
+
+  const filteredStudents = sessionStudents.filter(
+    (s) =>
+      s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.email.toLowerCase().includes(query.toLowerCase())
   );
+
+  const stats = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    sessionStudents.forEach((s) => {
+      const rec = attendance.find((a) => a.sessionId === selectedSession && a.studentId === s.id);
+      if (rec?.status === "present") present++;
+      else if (rec?.status === "absent") absent++;
+    });
+    return { present, absent, pending: sessionStudents.length - present - absent };
+  }, [sessionStudents, attendance, selectedSession]);
+
+  const markAll = async (status: "present" | "absent") => {
+    if (!selectedSession || sessionStudents.length === 0) return;
+    const loading = toast.loading(`Marking everyone ${status}...`);
+    try {
+      await Promise.all(
+        sessionStudents.map((s) => markAttendance(selectedSession, s.id, status))
+      );
+      toast.dismiss(loading);
+      toast.success(`Marked ${sessionStudents.length} students as ${status}`);
+    } catch (e) {
+      toast.dismiss(loading);
+      toast.error("Failed to mark all");
+      console.error(e);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -48,16 +88,25 @@ function AttendancePage() {
             <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Select Session</h2>
                <div className="space-y-2">
-                  {schedules.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedSession(s.id)}
-                      className={`w-full text-left p-3 rounded-xl border transition ${selectedSession === s.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border bg-background hover:bg-muted/50'}`}
-                    >
-                       <p className="text-xs font-bold truncate">{s.title}</p>
-                       <p className="text-[10px] text-muted-foreground mt-1">{s.date} · {s.time}</p>
-                    </button>
-                  ))}
+                  {schedules.length === 0 && (
+                    <Link to="/instructor/schedule" className="block rounded-xl border border-dashed border-border p-4 text-center text-[11px] text-muted-foreground hover:bg-muted/30 transition">
+                      No sessions yet. <span className="font-bold text-primary">Schedule one →</span>
+                    </Link>
+                  )}
+                  {schedules.map((s) => {
+                    const course = courses.find(c => c.id === s.courseId);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedSession(s.id)}
+                        className={`w-full text-left p-3 rounded-xl border transition ${selectedSession === s.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border bg-background hover:bg-muted/50'}`}
+                      >
+                         <p className="text-xs font-bold truncate">{s.title}</p>
+                         <p className="text-[10px] text-muted-foreground mt-1 truncate">{course?.title}</p>
+                         <p className="text-[10px] text-muted-foreground mt-0.5">{s.date} · {s.time}</p>
+                      </button>
+                    );
+                  })}
                </div>
             </div>
 
@@ -89,18 +138,58 @@ function AttendancePage() {
          </div>
 
          <div className="lg:col-span-3 space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Present</p>
+                  <UserCheck className="h-4 w-4 text-success" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-success">{stats.present}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Absent</p>
+                  <UserX className="h-4 w-4 text-destructive" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-destructive">{stats.absent}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Pending</p>
+                  <Clock3 className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold">{stats.pending}</p>
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <h2 className="font-display text-lg font-semibold">Attendance List</h2>
-                  <div className="relative w-full sm:w-64">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="search"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search students..."
-                      className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
-                    />
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => markAll('present')}
+                      disabled={!currentSession || sessionStudents.length === 0}
+                      className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-[11px] font-bold text-success hover:bg-success/20 transition disabled:opacity-40"
+                    >
+                      All Present
+                    </button>
+                    <button
+                      onClick={() => markAll('absent')}
+                      disabled={!currentSession || sessionStudents.length === 0}
+                      className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] font-bold text-destructive hover:bg-destructive/20 transition disabled:opacity-40"
+                    >
+                      All Absent
+                    </button>
+                    <div className="relative flex-1 sm:w-56">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search students..."
+                        className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                      />
+                    </div>
                   </div>
                </div>
 
@@ -142,22 +231,22 @@ function AttendancePage() {
                                </td>
                               <td className="py-4 text-right">
                                  <div className="flex items-center justify-end gap-2">
-                                    <button 
+                                    <button
                                       onClick={async () => {
                                         await markAttendance(selectedSession, s.id, 'present');
                                         toast.success(`Marked ${s.name} as present`);
                                       }}
-                                      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-success hover:bg-success/10 transition"
+                                      className={`h-8 w-8 rounded-lg border flex items-center justify-center transition ${status === 'present' ? 'border-success bg-success text-success-foreground' : 'border-border bg-card text-success hover:bg-success/10'}`}
                                       title="Mark Present"
                                     >
                                        <Check className="h-4 w-4" />
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={async () => {
                                         await markAttendance(selectedSession, s.id, 'absent');
                                         toast.success(`Marked ${s.name} as absent`);
                                       }}
-                                      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-destructive hover:bg-destructive/10 transition"
+                                      className={`h-8 w-8 rounded-lg border flex items-center justify-center transition ${status === 'absent' ? 'border-destructive bg-destructive text-destructive-foreground' : 'border-border bg-card text-destructive hover:bg-destructive/10'}`}
                                       title="Mark Absent"
                                     >
                                        <X className="h-4 w-4" />
