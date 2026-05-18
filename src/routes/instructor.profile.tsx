@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Check, Mail, MapPin, Phone, Briefcase, Award, ExternalLink, Plus, Banknote, Download, FileText, ChevronRight } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
 import { toast } from "sonner";
+import { updatePassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export const Route = createFileRoute("/instructor/profile")({
   component: ProfilePage,
@@ -29,19 +31,39 @@ function ProfilePage() {
   const joinedAt = profile.joinedAt?.toDate?.().toLocaleDateString() || profile.createdAt?.toDate?.().toLocaleDateString() || "recently";
   const initials = profileName.split(" ").map((part) => part[0]).slice(0, 2).join("");
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      await updateProfile(form);
+      setSaved(true);
+      toast.success("Profile details updated in database!");
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to update profile.");
+    }
   };
 
-  const changePwd = (e: React.FormEvent) => {
+  const changePwd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pwd.next.length < 8) return setPwdMsg({ type: "error", text: "Password must be at least 8 characters." });
     if (pwd.next !== pwd.confirm) return setPwdMsg({ type: "error", text: "Passwords don't match." });
-    setPwdMsg({ type: "success", text: "Password updated successfully." });
-    setPwd({ current: "", next: "", confirm: "" });
+    
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await updatePassword(user, pwd.next);
+        setPwdMsg({ type: "success", text: "Password updated successfully." });
+        toast.success("Secure password updated successfully!");
+        setPwd({ current: "", next: "", confirm: "" });
+      } else {
+        setPwdMsg({ type: "error", text: "You must be signed in to change your password." });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setPwdMsg({ type: "error", text: err.message || "Failed to update password." });
+      toast.error("Password update failed. Please re-authenticate and try again.");
+    }
     setTimeout(() => setPwdMsg(null), 3000);
   };
 

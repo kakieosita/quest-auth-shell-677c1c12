@@ -185,7 +185,7 @@ export interface Submission {
 }
 
 export interface Certificate {
-  id: string;
+  id?: string;
   studentId: string;
   programId: string;
   programName: string;
@@ -195,7 +195,7 @@ export interface Certificate {
 }
 
 export interface Announcement {
-  id: string;
+  id?: string;
   title: string;
   content: string;
   date: Timestamp;

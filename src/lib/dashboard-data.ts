@@ -2,6 +2,7 @@ export type Course = {
   id: string;
   title: string;
   instructor: string;
+  instructorId?: string;
   category: string;
   thumbnail: string;
   progress: number;

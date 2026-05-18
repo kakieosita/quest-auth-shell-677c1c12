@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Send, Search, MoreVertical, Loader2 } from "lucide-react";
-import { useInstructorStore } from "@/stores/instructor-store";
+import { useDashboardStore } from "@/stores/dashboard-store";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   addDoc,
@@ -14,7 +14,7 @@ import {
 import { messagesCollection } from "@/lib/db/collections";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/instructor/messages")({
+export const Route = createFileRoute("/dashboard/messages")({
   component: MessagesPage,
 });
 
@@ -40,15 +40,22 @@ function formatTime(ts: any): string {
 
 function MessagesPage() {
   const { user } = useAuthStore();
-  const students = useInstructorStore((s) => s.students);
-  const uniqueStudents = useMemo(() => {
+  const courses = useDashboardStore((s) => s.courses);
+  
+  const uniqueInstructors = useMemo(() => {
     const seen = new Set<string>();
-    return students.filter((s) => {
-      if (!s.id || seen.has(s.id)) return false;
-      seen.add(s.id);
-      return true;
-    });
-  }, [students]);
+    return courses
+      .filter((c) => c.instructorId && c.instructor)
+      .map((c) => ({
+        id: c.instructorId as string,
+        name: c.instructor,
+      }))
+      .filter((inst) => {
+        if (seen.has(inst.id)) return false;
+        seen.add(inst.id);
+        return true;
+      });
+  }, [courses]);
 
   const [activeChat, setActiveChat] = useState<string>("");
   const [searchQ, setSearchQ] = useState("");
@@ -59,10 +66,10 @@ function MessagesPage() {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!activeChat && uniqueStudents[0]?.id) setActiveChat(uniqueStudents[0].id);
-  }, [uniqueStudents, activeChat]);
+    if (!activeChat && uniqueInstructors[0]?.id) setActiveChat(uniqueInstructors[0].id);
+  }, [uniqueInstructors, activeChat]);
 
-  const currentStudent = uniqueStudents.find((s) => s.id === activeChat);
+  const currentInstructor = uniqueInstructors.find((i) => i.id === activeChat);
   const conversationId =
     user && activeChat ? conversationIdFor(user.id, activeChat) : "";
 
@@ -107,14 +114,11 @@ function MessagesPage() {
     return () => unsub();
   }, [conversationId]);
 
-  const filteredStudents = useMemo(() => {
+  const filteredInstructors = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
-    if (!q) return uniqueStudents;
-    return uniqueStudents.filter(
-      (s) =>
-        s.name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q),
-    );
-  }, [uniqueStudents, searchQ]);
+    if (!q) return uniqueInstructors;
+    return uniqueInstructors.filter((i) => i.name.toLowerCase().includes(q));
+  }, [uniqueInstructors, searchQ]);
 
   const send = async () => {
     if (!user || !activeChat || !msg.trim()) return;
@@ -123,9 +127,9 @@ function MessagesPage() {
       await addDoc(messagesCollection, {
         conversationId,
         senderId: user.id,
-        senderName: user.displayName || user.email || "Instructor",
+        senderName: user.displayName || user.email || "Student",
         recipientId: activeChat,
-        recipientName: currentStudent?.name || "",
+        recipientName: currentInstructor?.name || "Instructor",
         text: msg.trim(),
         createdAt: serverTimestamp(),
       });
@@ -143,7 +147,7 @@ function MessagesPage() {
         <div>
           <h1 className="font-display text-3xl font-bold">Messages</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Directly message your students.
+            Directly message your instructors.
           </p>
         </div>
       </div>
@@ -158,27 +162,27 @@ function MessagesPage() {
                 type="search"
                 value={searchQ}
                 onChange={(e) => setSearchQ(e.target.value)}
-                placeholder="Search students..."
+                placeholder="Search instructors..."
                 className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-4 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
               />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredStudents.length === 0 ? (
+            {filteredInstructors.length === 0 ? (
               <p className="p-6 text-center text-xs text-muted-foreground">
-                No students yet.
+                No instructors yet.
               </p>
             ) : (
-              filteredStudents.map((s) => (
+              filteredInstructors.map((inst) => (
                 <button
-                  key={s.id}
-                  onClick={() => setActiveChat(s.id)}
+                  key={inst.id}
+                  onClick={() => setActiveChat(inst.id)}
                   className={`w-full flex items-center gap-3 p-4 text-left transition hover:bg-muted/50 ${
-                    activeChat === s.id ? "bg-primary/5 border-r-4 border-primary" : ""
+                    activeChat === inst.id ? "bg-primary/5 border-r-4 border-primary" : ""
                   }`}
                 >
                   <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                    {(s?.name || "U")
+                    {(inst.name || "U")
                       .split(" ")
                       .map((n) => n[0])
                       .join("")
@@ -186,8 +190,8 @@ function MessagesPage() {
                       .toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{s.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                    <p className="font-semibold text-sm truncate">{inst.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">Instructor</p>
                   </div>
                 </button>
               ))
@@ -197,12 +201,12 @@ function MessagesPage() {
 
         {/* Chat Area */}
         <div className="hidden sm:flex flex-1 flex-col bg-muted/5">
-          {currentStudent ? (
+          {currentInstructor ? (
             <>
               <div className="p-4 border-b border-border bg-card flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                    {(currentStudent?.name || "U")
+                    {(currentInstructor.name || "U")
                       .split(" ")
                       .map((n) => n[0])
                       .join("")
@@ -210,8 +214,8 @@ function MessagesPage() {
                       .toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-sm">{currentStudent.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{currentStudent.email}</p>
+                    <p className="font-bold text-sm">{currentInstructor.name}</p>
+                    <p className="text-[10px] text-muted-foreground">Instructor</p>
                   </div>
                 </div>
                 <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition">
@@ -293,7 +297,7 @@ function MessagesPage() {
               <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Send className="h-8 w-8 opacity-20" />
               </div>
-              <p className="text-sm font-medium">Select a student to start messaging</p>
+              <p className="text-sm font-medium">Select an instructor to start messaging</p>
             </div>
           )}
         </div>

@@ -149,6 +149,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     let allAssignments: any[] = [];
     let allAttendance: any[] = [];
     let allTimetable: any[] = [];
+    let enrolledDocs: any[] = [];
+    let dbCertificates: any[] = [];
 
     const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
 
@@ -204,6 +206,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
           id: p.id,
           title: p.title || "Untitled",
           instructor: p.instructor || p.instructorName || "TBA",
+          instructorId: p.instructorId || "",
           category: p.category || p.type || "Course",
           thumbnail: p.thumbnail || p.image
             ? `url(${p.thumbnail || p.image})`
@@ -229,8 +232,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
       const attendanceByProgram: Record<string, { attended: number, total: number }> = {};
       
-      enrolledProgramIds.forEach(pid => {
-        const totalClasses = allTimetable.filter(t => t.programId === pid).length;
+      studentProgramIds.forEach(pid => {
+        const pastClasses = allTimetable.filter(t => 
+          t.programId === pid && (t.attendanceSubmitted === true || t.status === 'completed')
+        );
+        const totalClasses = pastClasses.length;
         attendanceByProgram[pid] = { attended: 0, total: totalClasses };
       });
 
@@ -243,7 +249,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const attendanceSummary = Object.entries(attendanceByProgram).map(([pid, data]) => ({
         id: pid,
         course: idToTitle[pid] || "Unknown Course",
-        totalClasses: Math.max(data.total, 1),
+        totalClasses: data.total,
         attendedClasses: data.attended
       }));
 
@@ -268,10 +274,59 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       });
     };
 
+    const recomputeGrades = () => {
+      const idToTitle: Record<string, string> = {};
+      allPrograms.forEach((p) => { idToTitle[p.id] = p.title; });
+
+      const gradesList = enrolledDocs.map((e) => {
+        const courseTitle = idToTitle[e.programId] || "Unknown Course";
+        const progress = e.progress || 0;
+        const gradeLetter = (e.grade || (progress >= 85 ? "A" : progress >= 70 ? "B" : progress >= 50 ? "C" : progress >= 40 ? "D" : "F")) as any;
+        
+        return {
+          id: e.id,
+          course: courseTitle,
+          score: progress,
+          grade: gradeLetter,
+          credits: 3
+        };
+      });
+
+      set({ grades: gradesList });
+    };
+
+    const recomputeCertificates = () => {
+      const idToTitle: Record<string, string> = {};
+      allPrograms.forEach((p) => { idToTitle[p.id] = p.title; });
+
+      const certList = dbCertificates.map((c) => ({
+        id: c.id,
+        course: c.programName || idToTitle[c.programId] || "Completed Program",
+        issuedAt: c.issueDate?.toDate?.().toISOString() || new Date().toISOString(),
+        credentialId: c.verificationId || `USTO-CERT-${c.id.substring(0, 6).toUpperCase()}`
+      }));
+
+      enrolledDocs.forEach(e => {
+        if ((e.progress === 100 || e.status === 'completed') && !certList.some(c => c.id === e.id || c.id === `synth-${e.id}`)) {
+          const courseTitle = idToTitle[e.programId] || "Completed Program";
+          certList.push({
+            id: `synth-${e.id}`,
+            course: courseTitle,
+            issuedAt: e.updatedAt?.toDate?.().toISOString() || e.createdAt?.toDate?.().toISOString() || new Date().toISOString(),
+            credentialId: `USTO-AUTO-${e.id.substring(0, 6).toUpperCase()}`
+          });
+        }
+      });
+
+      set({ certificates: certList });
+    };
+
     const recomputeAll = () => { 
       recomputeAssignments(); 
       recomputeCourses(); 
       recomputeAttendance(); 
+      recomputeGrades();
+      recomputeCertificates();
       syncForum();
     };
 
@@ -292,7 +347,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
     // 3. Sync Enrollments
     unsubs.push(onSnapshot(query(enrollmentsCollection, where("studentId", "==", userId)), (snap) => {
-      enrolledProgramIds = snap.docs.map((d) => (d.data() as any).programId).filter(Boolean);
+      enrolledDocs = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      enrolledProgramIds = enrolledDocs.map((d) => d.programId).filter(Boolean);
       recomputeAll();
     }));
 
@@ -327,6 +383,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     unsubs.push(onSnapshot(timetableCollection, (snap) => {
       allTimetable = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       recomputeAttendance();
+    }));
+
+    // 10. Sync Certificates
+    unsubs.push(onSnapshot(query(certificatesCollection, where("studentId", "==", userId)), (snap) => {
+      dbCertificates = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      recomputeCertificates();
     }));
 
     // 9. Sync Forum Posts for student's programs

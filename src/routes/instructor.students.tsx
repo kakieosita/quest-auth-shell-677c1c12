@@ -1,8 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { Search, ArrowUpDown, Mail, Download, FileText, FileSpreadsheet, X, Check, MessageSquare } from "lucide-react";
+import { Search, ArrowUpDown, User, Download, FileText, FileSpreadsheet, X, Check, MessageSquare } from "lucide-react";
 import { useInstructorStore } from "@/stores/instructor-store";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import Papa from "papaparse";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const Route = createFileRoute("/instructor/students")({
   component: StudentsPage,
@@ -19,6 +23,7 @@ function StudentsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [gradingId, setGradingId] = useState<string | null>(null);
   const [gradeInput, setGradeInput] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
     let result = students.filter((s) => {
@@ -50,6 +55,49 @@ function StudentsPage() {
     toast.success(`Generating ${type.toUpperCase()} report...`, {
       description: `The student roster for ${courseFilter === 'all' ? 'all courses' : 'selected course'} is being prepared.`
     });
+
+    const dataToExport = filtered.map((s) => {
+      const course = courses.find((c) => c.id === s.courseId);
+      return {
+        Student: s.name,
+        Email: s.email,
+        Course: course?.title ?? "—",
+        Progress: `${s.progress}%`,
+        Grade: s.grade || "Not Graded",
+        "Last Active": s.lastActive,
+      };
+    });
+
+    const filename = `student_roster_${new Date().toISOString().split("T")[0]}`;
+
+    if (type === "excel") {
+      const csv = Papa.unparse(dataToExport);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute("download", `${filename}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (type === "pdf") {
+      const doc = new jsPDF();
+      doc.text("Student Roster", 14, 15);
+      autoTable(doc, {
+        startY: 20,
+        head: [["Student", "Email", "Course", "Progress", "Grade", "Last Active"]],
+        body: dataToExport.map((row) => [
+          row.Student,
+          row.Email,
+          row.Course,
+          row.Progress,
+          row.Grade,
+          row["Last Active"],
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [99, 102, 241] },
+      });
+      doc.save(`${filename}.pdf`);
+    }
   };
 
   return (
@@ -189,8 +237,12 @@ function StudentsPage() {
                         >
                           <MessageSquare className="h-4 w-4" />
                         </Link>
-                        <button className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition" title="Student Details">
-                          <Mail className="h-4 w-4" />
+                        <button 
+                          onClick={() => setSelectedStudent(s)}
+                          className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition" 
+                          title="Student Details"
+                        >
+                          <User className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -207,6 +259,63 @@ function StudentsPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Student Details</DialogTitle>
+            <DialogDescription>
+              Detailed information for {selectedStudent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-primary text-xl font-bold text-primary-foreground shadow-soft">
+                  {(selectedStudent.name || "S").split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{selectedStudent.name}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedStudent.email}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-semibold text-muted-foreground">Course</span>
+                <span className="col-span-3 text-sm font-medium">
+                  {courses.find(c => c.id === selectedStudent.courseId)?.title || "—"}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-semibold text-muted-foreground">Progress</span>
+                <span className="col-span-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full bg-gradient-primary" style={{ width: `${selectedStudent.progress}%` }} />
+                    </div>
+                    <span className="text-xs font-bold">{selectedStudent.progress}%</span>
+                  </div>
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-semibold text-muted-foreground">Grade</span>
+                <span className="col-span-3 text-sm font-medium">
+                  {selectedStudent.grade ? (
+                    <span className="inline-flex items-center rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">
+                      {selectedStudent.grade}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Not Graded</span>
+                  )}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-semibold text-muted-foreground">Last Active</span>
+                <span className="col-span-3 text-sm font-medium">{selectedStudent.lastActive}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

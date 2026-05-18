@@ -10,6 +10,8 @@ import {
   type EarningRecord,
   type Credential,
   type AttendanceRecord,
+  earningsHistory,
+  instructorCredentials,
 } from "@/lib/instructor-data";
 import { 
   onSnapshot, 
@@ -52,7 +54,7 @@ type InstructorState = {
   addCourse: (course: Omit<InstructorCourse, "id" | "students" | "rating" | "revenue" | "completionRate" | "updatedAt">) => void;
   deleteCourse: (id: string) => void;
   updateCourse: (id: string, patch: Partial<InstructorCourse>) => void;
-  updateProfile: (patch: Partial<Profile>) => void;
+  updateProfile: (patch: Partial<Profile>) => Promise<void>;
   addSchedule: (session: Omit<ScheduleSession, "id">) => Promise<void>;
   postAnnouncement: (announcement: Omit<Announcement, "id" | "date">) => Promise<void>;
   addAssignment: (assignment: Omit<InstructorAssignment, "id" | "submissions" | "graded" | "totalStudents">) => Promise<void>;
@@ -72,8 +74,8 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
   schedules: [],
   announcements: [],
   attendance: [],
-  earnings: [],
-  credentials: [],
+  earnings: earningsHistory,
+  credentials: instructorCredentials,
   profile: {} as any,
   addCourse: (course) =>
     set((state) => ({
@@ -96,7 +98,12 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
     set((state) => ({
       courses: state.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     })),
-  updateProfile: (patch) => set((state) => ({ profile: { ...state.profile, ...patch } })),
+  updateProfile: async (patch) => {
+    const id = get().profile.id;
+    if (!id) return;
+    await updateDoc(doc(usersCollection, id), patch as any);
+    set((state) => ({ profile: { ...state.profile, ...patch } }));
+  },
   addSchedule: async (session: any) => {
     const instructorId = get().profile.id;
     const program = get().courses.find(c => c.id === session.courseId);

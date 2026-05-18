@@ -46,6 +46,7 @@ import { Route as InstructorAnnouncementsRouteImport } from './routes/instructor
 import { Route as InstructorAnalyticsRouteImport } from './routes/instructor.analytics'
 import { Route as DashboardQuizzesRouteImport } from './routes/dashboard.quizzes'
 import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
+import { Route as DashboardMessagesRouteImport } from './routes/dashboard.messages'
 import { Route as DashboardGradesRouteImport } from './routes/dashboard.grades'
 import { Route as DashboardFinanceRouteImport } from './routes/dashboard.finance'
 import { Route as DashboardEventsRouteImport } from './routes/dashboard.events'
@@ -258,6 +259,11 @@ const DashboardProfileRoute = DashboardProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardMessagesRoute = DashboardMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardGradesRoute = DashboardGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -426,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/events': typeof DashboardEventsRoute
   '/dashboard/finance': typeof DashboardFinanceRoute
   '/dashboard/grades': typeof DashboardGradesRoute
+  '/dashboard/messages': typeof DashboardMessagesRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/quizzes': typeof DashboardQuizzesRoute
   '/instructor/analytics': typeof InstructorAnalyticsRoute
@@ -485,6 +492,7 @@ export interface FileRoutesByTo {
   '/dashboard/events': typeof DashboardEventsRoute
   '/dashboard/finance': typeof DashboardFinanceRoute
   '/dashboard/grades': typeof DashboardGradesRoute
+  '/dashboard/messages': typeof DashboardMessagesRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/quizzes': typeof DashboardQuizzesRoute
   '/instructor/analytics': typeof InstructorAnalyticsRoute
@@ -551,6 +559,7 @@ export interface FileRoutesById {
   '/dashboard/events': typeof DashboardEventsRoute
   '/dashboard/finance': typeof DashboardFinanceRoute
   '/dashboard/grades': typeof DashboardGradesRoute
+  '/dashboard/messages': typeof DashboardMessagesRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/quizzes': typeof DashboardQuizzesRoute
   '/instructor/analytics': typeof InstructorAnalyticsRoute
@@ -618,6 +627,7 @@ export interface FileRouteTypes {
     | '/dashboard/events'
     | '/dashboard/finance'
     | '/dashboard/grades'
+    | '/dashboard/messages'
     | '/dashboard/profile'
     | '/dashboard/quizzes'
     | '/instructor/analytics'
@@ -677,6 +687,7 @@ export interface FileRouteTypes {
     | '/dashboard/events'
     | '/dashboard/finance'
     | '/dashboard/grades'
+    | '/dashboard/messages'
     | '/dashboard/profile'
     | '/dashboard/quizzes'
     | '/instructor/analytics'
@@ -742,6 +753,7 @@ export interface FileRouteTypes {
     | '/dashboard/events'
     | '/dashboard/finance'
     | '/dashboard/grades'
+    | '/dashboard/messages'
     | '/dashboard/profile'
     | '/dashboard/quizzes'
     | '/instructor/analytics'
@@ -1048,6 +1060,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardProfileRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/messages': {
+      id: '/dashboard/messages'
+      path: '/messages'
+      fullPath: '/dashboard/messages'
+      preLoaderRoute: typeof DashboardMessagesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/grades': {
       id: '/dashboard/grades'
       path: '/grades'
@@ -1303,6 +1322,7 @@ interface DashboardRouteChildren {
   DashboardEventsRoute: typeof DashboardEventsRoute
   DashboardFinanceRoute: typeof DashboardFinanceRoute
   DashboardGradesRoute: typeof DashboardGradesRoute
+  DashboardMessagesRoute: typeof DashboardMessagesRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
   DashboardQuizzesRoute: typeof DashboardQuizzesRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
@@ -1318,6 +1338,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardEventsRoute: DashboardEventsRoute,
   DashboardFinanceRoute: DashboardFinanceRoute,
   DashboardGradesRoute: DashboardGradesRoute,
+  DashboardMessagesRoute: DashboardMessagesRoute,
   DashboardProfileRoute: DashboardProfileRoute,
   DashboardQuizzesRoute: DashboardQuizzesRoute,
   DashboardIndexRoute: DashboardIndexRoute,
@@ -1416,3 +1437,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

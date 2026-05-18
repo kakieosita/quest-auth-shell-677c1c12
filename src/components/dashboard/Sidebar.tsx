@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, BookOpen, FileText, Award, User, LogOut, X, Search, GraduationCap, CalendarCheck, Wallet, MessageSquare, Calendar } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileText, Award, User, LogOut, X, Search, GraduationCap, CalendarCheck, Wallet, MessageSquare, Calendar, Mail as MailIcon } from "lucide-react";
 import upskillLogo from "@/assets/upskill-logo.png";
 import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/auth-api";
@@ -22,7 +22,7 @@ const items: NavItem[] = [
   { to: "/dashboard/certificates", label: "Certificates", icon: Award },
   { to: "/dashboard/finance", label: "Finance", icon: Wallet },
   { to: "/dashboard/community", label: "Community", icon: MessageSquare },
-  { to: "/dashboard/events", label: "Events", icon: Calendar },
+  { to: "/dashboard/messages", label: "Messages", icon: MailIcon },
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
 

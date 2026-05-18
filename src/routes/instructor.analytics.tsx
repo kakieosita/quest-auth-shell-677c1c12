@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -29,25 +30,104 @@ function AnalyticsPage() {
   const courses = useInstructorStore((s) => s.courses);
   const students = useInstructorStore((s) => s.students);
 
-  const totalStudents = courses.reduce((s, c) => s + c.students, 0);
-  const avgCompletion = Math.round(
-    courses.filter((c) => c.students > 0).reduce((s, c) => s + c.completionRate, 0) /
-      Math.max(1, courses.filter((c) => c.students > 0).length),
-  );
-  const activeStudents = students.filter((s) => s.lastActive === "Today" || s.lastActive === "Yesterday").length;
-  const engagement = Math.round((activeStudents / Math.max(1, students.length)) * 100);
+  // 1. Dynamic map of courseId to student count
+  const studentCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    students.forEach((s) => {
+      if (s.courseId) {
+        map[s.courseId] = (map[s.courseId] || 0) + 1;
+      }
+    });
+    return map;
+  }, [students]);
 
-  const coursePerformance = courses
-    .filter((c) => c.students > 0)
-    .map((c) => ({ name: c.title.split(" ").slice(0, 2).join(" "), students: c.students, completion: c.completionRate }));
+  // 2. Dynamic map of courseId to average progress (completion rate)
+  const courseCompletionMap = useMemo(() => {
+    const progressSum: Record<string, number> = {};
+    const count: Record<string, number> = {};
+    students.forEach((s) => {
+      if (s.courseId) {
+        progressSum[s.courseId] = (progressSum[s.courseId] || 0) + s.progress;
+        count[s.courseId] = (count[s.courseId] || 0) + 1;
+      }
+    });
+    
+    const map: Record<string, number> = {};
+    Object.keys(count).forEach((cid) => {
+      map[cid] = Math.round(progressSum[cid] / count[cid]);
+    });
+    return map;
+  }, [students]);
 
-  const categoryData = Object.values(
-    courses.reduce<Record<string, { name: string; value: number }>>((acc, c) => {
-      if (!acc[c.category]) acc[c.category] = { name: c.category, value: 0 };
-      acc[c.category].value += c.students;
+  // 3. Dynamic metrics
+  const totalStudents = students.length;
+  
+  const avgCompletion = useMemo(() => {
+    if (students.length === 0) return 0;
+    const sum = students.reduce((acc, s) => acc + s.progress, 0);
+    return Math.round(sum / students.length);
+  }, [students]);
+
+  const activeStudents = useMemo(() => {
+    return students.filter((s) => {
+      const la = s.lastActive;
+      if (!la || la === "N/A") return false;
+      if (la === "Today" || la === "Yesterday" || la.includes("days ago") || la.includes("hours ago")) return true;
+      
+      const parsed = Date.parse(la);
+      if (!isNaN(parsed)) {
+        const diffTime = Math.abs(Date.now() - parsed);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      return false;
+    }).length;
+  }, [students]);
+
+  const engagement = students.length > 0 ? Math.round((activeStudents / students.length) * 100) : 0;
+
+  // Assume average price of ₦25,000 per enrollment if course revenue is 0
+  const totalRevenue = useMemo(() => {
+    const storeRevenue = courses.reduce((sum, c) => sum + (c.revenue || 0), 0);
+    if (storeRevenue > 0) return storeRevenue;
+    return students.length * 25000;
+  }, [courses, students]);
+
+  const formatCurrency = (val: number) => {
+    if (val >= 1_000_000) return `₦${(val / 1_000_000).toFixed(1)}M`;
+    if (val >= 1_000) return `₦${(val / 1_000).toFixed(0)}k`;
+    return `₦${val}`;
+  };
+
+  const revenueDisplay = formatCurrency(totalRevenue);
+
+  // 4. Dynamic Course Performance
+  const coursePerformance = useMemo(() => {
+    return courses
+      .map((c) => {
+        const count = studentCountMap[c.id] || 0;
+        const completion = courseCompletionMap[c.id] || 0;
+        return {
+          name: c.title.split(" ").slice(0, 2).join(" "),
+          students: count,
+          completion: completion,
+        };
+      })
+      .filter((c) => c.students > 0);
+  }, [courses, studentCountMap, courseCompletionMap]);
+
+  // 5. Dynamic Enrollments by Category
+  const categoryData = useMemo(() => {
+    const data = courses.reduce<Record<string, { name: string; value: number }>>((acc, c) => {
+      const count = studentCountMap[c.id] || 0;
+      if (count > 0) {
+        if (!acc[c.category]) acc[c.category] = { name: c.category, value: 0 };
+        acc[c.category].value += count;
+      }
       return acc;
-    }, {}),
-  );
+    }, {});
+    return Object.values(data);
+  }, [courses, studentCountMap]);
 
   return (
     <div className="space-y-6">
@@ -60,7 +140,7 @@ function AnalyticsPage() {
         <StatCard label="Total enrollments" value={totalStudents.toLocaleString()} delta="+18% this quarter" icon={Users} tone="primary" />
         <StatCard label="Avg completion" value={`${avgCompletion}%`} delta="+4 pts MoM" icon={Target} tone="success" />
         <StatCard label="Active students" value={`${activeStudents}`} delta={`${engagement}% engaged`} icon={Activity} tone="mint" />
-        <StatCard label="Revenue (Apr)" value="₦940k" delta="+14.6% MoM" icon={TrendingUp} tone="primary" />
+        <StatCard label="Total Revenue" value={revenueDisplay} delta="+14.6% MoM" icon={TrendingUp} tone="primary" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -114,36 +194,44 @@ function AnalyticsPage() {
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="font-display text-lg font-semibold">Course performance</h2>
           <p className="mb-4 text-xs text-muted-foreground">Students enrolled vs completion rate.</p>
-          <div className="h-72 w-full">
-            <ResponsiveContainer>
-              <BarChart data={coursePerformance} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.015 250)" />
-                <XAxis type="number" tick={{ fontSize: 11 }} stroke="oklch(0.5 0.03 255)" />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="oklch(0.5 0.03 255)" width={100} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.92 0.015 250)" }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="students" fill="oklch(0.32 0.12 258)" radius={[0, 8, 8, 0]} />
-                <Bar dataKey="completion" fill="oklch(0.65 0.17 175)" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-72 w-full flex items-center justify-center">
+            {coursePerformance.length > 0 ? (
+              <ResponsiveContainer>
+                <BarChart data={coursePerformance} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.015 250)" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="oklch(0.5 0.03 255)" />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="oklch(0.5 0.03 255)" width={100} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.92 0.015 250)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="students" fill="oklch(0.32 0.12 258)" radius={[0, 8, 8, 0]} />
+                  <Bar dataKey="completion" fill="oklch(0.65 0.17 175)" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">No course performance data available.</p>
+            )}
           </div>
         </section>
 
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="font-display text-lg font-semibold">Enrollments by category</h2>
           <p className="mb-4 text-xs text-muted-foreground">Where your students come from.</p>
-          <div className="h-72 w-full">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3}>
-                  {categoryData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.92 0.015 250)" }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-72 w-full flex items-center justify-center">
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3}>
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.92 0.015 250)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">No enrollment category data available.</p>
+            )}
           </div>
         </section>
       </div>
