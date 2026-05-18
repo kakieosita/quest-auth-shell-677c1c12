@@ -21,6 +21,8 @@ export const Route = createFileRoute("/dashboard/grades")({
 function DashboardGrades() {
   const grades = useDashboardStore((s) => s.grades);
   const user = useDashboardStore((s) => s.user);
+  const assignments = useDashboardStore((s) => s.assignments);
+  const gradedAssignments = assignments.filter((a) => a.status === "graded");
 
   // Calculate GPA
   const calculateGPA = () => {
@@ -217,6 +219,45 @@ function DashboardGrades() {
               </TableBody>
             </Table>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden flex flex-col mt-6">
+        <div className="border-b px-6 py-4">
+          <h3 className="font-semibold text-lg">Assignment Grades</h3>
+        </div>
+        <div className="flex-1 overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Assignment</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead className="text-center">Grade</TableHead>
+                <TableHead className="text-right">Feedback</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {gradedAssignments.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-medium">{a.title}</TableCell>
+                  <TableCell>{a.course}</TableCell>
+                  <TableCell className="text-center font-bold text-success">
+                    <span className="rounded-full bg-success/15 px-2.5 py-1 text-xs text-success">
+                      {a.grade || "N/A"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">{a.feedback || "—"}</TableCell>
+                </TableRow>
+              ))}
+              {gradedAssignments.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No graded assignments yet.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

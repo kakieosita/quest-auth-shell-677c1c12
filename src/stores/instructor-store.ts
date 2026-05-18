@@ -57,6 +57,7 @@ type InstructorState = {
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
   addSchedule: (session: Omit<ScheduleSession, "id">) => Promise<void>;
   postAnnouncement: (announcement: Omit<Announcement, "id" | "date">) => Promise<void>;
+  deleteAnnouncement: (id: string) => Promise<void>;
   addAssignment: (assignment: Omit<InstructorAssignment, "id" | "submissions" | "graded" | "totalStudents">) => Promise<void>;
   deleteAssignment: (id: string) => Promise<void>;
   gradeSubmission: (submissionId: string, assignmentId: string, grade: string, feedback?: string) => Promise<void>;
@@ -128,6 +129,9 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
       authorId: instructorId,
       date: Timestamp.now()
     } as any);
+  },
+  deleteAnnouncement: async (id) => {
+    await deleteDoc(doc(announcementsCollection, id));
   },
   addAssignment: async (assignment) => {
     const instructorId = get().profile.id;
@@ -329,8 +333,12 @@ export const useInstructorStore = create<InstructorState>((set, get) => ({
     }));
 
     // 4. Sync Announcements
-    unsubs.push(onSnapshot(query(announcementsCollection, where("authorId", "==", instructorId)), (snap) => {
-      set({ announcements: snap.docs.map(d => ({ ...d.data(), id: d.id, date: (d.data().date as any)?.toDate?.().toLocaleDateString() || d.data().date } as any)) });
+    unsubs.push(onSnapshot(announcementsCollection, (snap) => {
+      const allAnns = snap.docs.map(d => ({ ...d.data(), id: d.id, date: (d.data().date as any)?.toDate?.().toLocaleDateString() || d.data().date, timestamp: (d.data().date as any)?.seconds || 0 } as any));
+      const instructorAnns = allAnns
+        .filter(a => a.authorId === instructorId || a.targetRole === 'all' || a.targetRole === 'instructor')
+        .sort((a, b) => b.timestamp - a.timestamp);
+      set({ announcements: instructorAnns });
     }));
 
     // 5. Sync Assignments

@@ -34,12 +34,6 @@ function MyCourses() {
           <h1 className="font-display text-3xl font-bold">My Courses</h1>
           <p className="mt-1 text-sm text-muted-foreground">{courses.length} courses · manage and edit anytime.</p>
         </div>
-        <Link
-          to="/instructor/courses/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:shadow-glow"
-        >
-          <Plus className="h-4 w-4" /> Create course
-        </Link>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -71,7 +65,7 @@ function MyCourses() {
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
           <p className="font-display text-lg font-semibold">No courses found</p>
-          <p className="mt-1 text-sm text-muted-foreground">Try a different filter or create a new course.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Try a different filter or contact the admin to be assigned a course.</p>
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

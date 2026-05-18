@@ -31,7 +31,6 @@ function InstructorOverview() {
 
   const quickActions = [
     { label: "New Class Session", icon: Plus, to: "/instructor/schedule", color: "bg-primary text-primary-foreground" },
-    { label: "Upload Content", icon: Upload, to: "/instructor/courses/new", color: "bg-mint text-mint-foreground" },
     { label: "Post Announcement", icon: Bell, to: "/instructor/announcements", color: "bg-warning text-warning-foreground" },
   ];
 

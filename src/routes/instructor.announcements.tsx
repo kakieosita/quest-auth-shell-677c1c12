@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Bell, Plus, X, Search, Megaphone, Calendar, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useInstructorStore } from "@/stores/instructor-store";
 
 export const Route = createFileRoute("/instructor/announcements")({
@@ -10,7 +11,9 @@ export const Route = createFileRoute("/instructor/announcements")({
 function AnnouncementsPage() {
   const announcements = useInstructorStore((s) => s.announcements);
   const postAnnouncement = useInstructorStore((s) => s.postAnnouncement);
+  const deleteAnnouncement = useInstructorStore((s) => s.deleteAnnouncement);
   const courses = useInstructorStore((s) => s.courses);
+  const profile = useInstructorStore((s) => s.profile);
   
   const [openCreate, setOpenCreate] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
@@ -67,9 +70,25 @@ function AnnouncementsPage() {
                         <span>Read by 142 students</span>
                         <span>0 comments</span>
                      </div>
-                     <button className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition">
-                        <Trash2 className="h-4 w-4" />
-                     </button>
+                     {a.authorId === profile.id && (
+                       <button
+                         onClick={async () => {
+                           if (confirm("Are you sure you want to delete this announcement?")) {
+                             try {
+                               await deleteAnnouncement(a.id);
+                               toast.success("Announcement deleted.");
+                             } catch (err: any) {
+                               toast.error("Failed to delete announcement.");
+                               console.error(err);
+                             }
+                           }
+                         }}
+                         className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
+                         aria-label="Delete announcement"
+                       >
+                          <Trash2 className="h-4 w-4" />
+                       </button>
+                     )}
                   </div>
                </article>
              );

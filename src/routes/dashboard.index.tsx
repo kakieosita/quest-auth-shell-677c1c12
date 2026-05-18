@@ -13,7 +13,7 @@ export const Route = createFileRoute("/dashboard/")({
 });
 
 function DashboardOverview() {
-  const { courses, assignments, activity, certificates, announcements, grades } = useDashboardStore();
+  const { courses, assignments, activity, certificates, announcements, grades, timetable } = useDashboardStore();
   const { user: authUser } = useAuthStore();
 
   const inProgress = courses.filter((c) => c.progress > 0 && c.progress < 100);
@@ -42,11 +42,8 @@ function DashboardOverview() {
     { label: "Certificates", value: certificates.length, icon: Award, color: "text-mint-foreground bg-mint/30" },
   ];
 
-  const schedule = [
-    { id: 1, title: "React Hooks Workshop", date: "Today", time: "2:00 PM", room: "Hall A" },
-    { id: 2, title: "Cloud Security Seminar", date: "Tomorrow", time: "10:00 AM", room: "Online" },
-    { id: 3, title: "Career Mentorship", date: "28 Apr", time: "4:00 PM", room: "UST Lab 2" },
-  ];
+  const schedule = timetable || [];
+  const nextClass = schedule[0];
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 pb-12">
@@ -77,15 +74,19 @@ function DashboardOverview() {
           <div className="hidden lg:block shrink-0">
              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
                 <p className="text-xs font-bold uppercase tracking-widest opacity-60 mb-2">Next Class</p>
-                <div className="flex items-center gap-3">
-                   <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
-                      <Calendar className="h-5 w-5" />
-                   </div>
-                   <div>
-                      <p className="font-semibold text-sm">Full-Stack Development</p>
-                      <p className="text-xs opacity-80">Today @ 2:00 PM</p>
-                   </div>
-                </div>
+                {nextClass ? (
+                  <div className="flex items-center gap-3">
+                     <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <Calendar className="h-5 w-5" />
+                     </div>
+                     <div>
+                        <p className="font-semibold text-sm max-w-[150px] truncate">{nextClass.courseName || nextClass.title}</p>
+                        <p className="text-xs opacity-80">{nextClass.date} @ {nextClass.time}</p>
+                     </div>
+                  </div>
+                ) : (
+                  <p className="text-sm opacity-80">No upcoming classes</p>
+                )}
              </div>
           </div>
         </div>
@@ -137,24 +138,34 @@ function DashboardOverview() {
               <h2 className="font-display text-xl font-bold">Upcoming Schedule</h2>
             </div>
             <div className="grid gap-4">
-               {schedule.map((item) => (
-                 <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-card hover:bg-accent/40 transition">
-                    <div className="flex items-center gap-4">
-                       <div className="flex flex-col items-center justify-center h-12 w-12 rounded-xl bg-accent text-primary font-bold">
-                          <span className="text-[10px] uppercase">{item.date.split(' ')[1] || 'Today'}</span>
-                          <span className="text-lg leading-none">{item.date.split(' ')[0] === 'Today' ? '24' : (item.date.split(' ')[0] === 'Tomorrow' ? '25' : item.date.split(' ')[0])}</span>
-                       </div>
-                       <div>
-                          <p className="font-semibold">{item.title}</p>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {item.time}</span>
-                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {item.room}</span>
-                          </div>
-                       </div>
-                    </div>
-                    <Button variant="outline" size="sm">Join Class</Button>
+               {schedule.length > 0 ? schedule.slice(0, 4).map((item: any) => {
+                 const isToday = new Date(item.date).toDateString() === new Date().toDateString();
+                 const dateParts = isToday ? ['Today', ''] : new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).split(' ');
+                 
+                 return (
+                   <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-card hover:bg-accent/40 transition">
+                      <div className="flex items-center gap-4">
+                         <div className="flex flex-col items-center justify-center h-12 w-12 rounded-xl bg-accent text-primary font-bold shrink-0">
+                            <span className="text-[10px] uppercase">{isToday ? 'Today' : dateParts[1]}</span>
+                            <span className="text-lg leading-none">{isToday ? new Date().getDate() : dateParts[0]}</span>
+                         </div>
+                         <div className="min-w-0">
+                            <p className="font-semibold truncate">{item.title}</p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                               <span className="flex items-center gap-1 shrink-0"><Clock className="h-3 w-3" /> {item.time}</span>
+                               <span className="flex items-center gap-1 shrink-0"><MapPin className="h-3 w-3" /> {item.room}</span>
+                            </div>
+                         </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="shrink-0 ml-2" onClick={() => toast.info('Joining interface not implemented.')}>Join</Button>
+                   </div>
+                 );
+               }) : (
+                 <div className="p-8 text-center border border-border rounded-2xl bg-card text-muted-foreground">
+                   <Calendar className="h-8 w-8 mx-auto mb-3 opacity-20" />
+                   <p>No upcoming classes scheduled</p>
                  </div>
-               ))}
+               )}
             </div>
           </section>
         </div>

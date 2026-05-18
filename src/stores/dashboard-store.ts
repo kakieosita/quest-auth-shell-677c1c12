@@ -147,6 +147,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     let allPrograms: any[] = [];
     let enrolledProgramIds: string[] = [];
     let allAssignments: any[] = [];
+    let allSubmissions: any[] = [];
     let allAttendance: any[] = [];
     let allTimetable: any[] = [];
     let enrolledDocs: any[] = [];
@@ -184,12 +185,17 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const visible = allAssignments
         .map((a) => ({ ...a, resolvedProgramId: getAssignmentProgramId(a, titleToId) }))
         .filter((a) => a.resolvedProgramId && programIds.has(a.resolvedProgramId))
-        .map((a) => ({
-          ...a,
-          course: idToTitle[a.resolvedProgramId] || a.courseName || a.programName || a.course || "",
-          status: a.status || "pending",
-          dueDate: (a.dueDate as any)?.toDate?.().toISOString?.() || a.dueDate,
-        }));
+        .map((a) => {
+          const submission = allSubmissions.find(sub => sub.assignmentId === a.id);
+          return {
+            ...a,
+            course: idToTitle[a.resolvedProgramId] || a.courseName || a.programName || a.course || "",
+            status: submission?.status || a.status || "pending",
+            grade: submission?.grade || a.grade,
+            feedback: submission?.feedback || a.feedback,
+            dueDate: (a.dueDate as any)?.toDate?.().toISOString?.() || a.dueDate,
+          };
+        });
 
       set({ assignments: visible as any, loading: false });
     };
@@ -268,9 +274,23 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+      const studentSchedule = allTimetable
+        .filter(s => studentProgramIds.has(s.programId) && s.status !== 'completed' && !s.attendanceSubmitted)
+        .map(s => ({
+          id: s.id,
+          title: s.title || "Untitled Session",
+          courseId: s.programId,
+          courseName: idToTitle[s.programId] || "Unknown Course",
+          date: s.date || "TBD",
+          time: s.startTime ? `${s.startTime}${s.endTime ? ` - ${s.endTime}` : ''}` : "TBD",
+          room: s.location || (s.type === 'virtual' ? 'Online' : 'TBD'),
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
       set({ 
         attendance: attendanceSummary as any,
-        attendanceHistory: history as any
+        attendanceHistory: history as any,
+        timetable: studentSchedule as any
       });
     };
 
@@ -358,6 +378,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       recomputeAssignments();
     }));
 
+    // 4.5. Sync Submissions for the student
+    unsubs.push(onSnapshot(query(submissionsCollection, where("studentId", "==", userId)), (snap) => {
+      allSubmissions = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      recomputeAssignments();
+    }));
+
     // 4. Sync Activities
     unsubs.push(onSnapshot(query(activitiesCollection, where("userId", "==", userId)), (snap) => {
       set({ activity: snap.docs.map(d => ({ ...d.data(), id: d.id } as any)) });
@@ -365,7 +391,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
     // 5. Sync Announcements (Global)
     unsubs.push(onSnapshot(announcementsCollection, (snap) => {
-      set({ announcements: snap.docs.map(d => ({ ...d.data(), id: d.id } as any)) });
+      const allAnns = snap.docs.map(d => ({ ...d.data(), id: d.id } as any));
+      const studentAnns = allAnns
+        .filter(a => !a.targetRole || a.targetRole === 'all' || a.targetRole === 'student')
+        .sort((a, b) => {
+          const dateA = a.date?.seconds || 0;
+          const dateB = b.date?.seconds || 0;
+          return dateB - dateA;
+        });
+      set({ announcements: studentAnns });
     }));
 
     // 6. Sync Events

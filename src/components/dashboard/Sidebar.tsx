@@ -16,7 +16,6 @@ const items: NavItem[] = [
   { to: "/dashboard/courses", label: "My Courses", icon: BookOpen },
   { to: "/dashboard/catalog", label: "Course Catalog", icon: Search },
   { to: "/dashboard/assignments", label: "Assignments", icon: FileText },
-  { to: "/dashboard/quizzes", label: "Quizzes", icon: CalendarCheck },
   { to: "/dashboard/grades", label: "Grades", icon: GraduationCap },
   { to: "/dashboard/attendance", label: "Attendance", icon: User },
   { to: "/dashboard/certificates", label: "Certificates", icon: Award },

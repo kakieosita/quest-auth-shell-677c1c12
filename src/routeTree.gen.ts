@@ -71,7 +71,6 @@ import { Route as AdminCertificatesRouteImport } from './routes/admin.certificat
 import { Route as AdminApplicationsRouteImport } from './routes/admin.applications'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as InstructorCoursesIndexRouteImport } from './routes/instructor.courses.index'
-import { Route as InstructorCoursesNewRouteImport } from './routes/instructor.courses.new'
 import { Route as DashboardCoursesCourseIdRouteImport } from './routes/dashboard.courses.$courseId'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -384,11 +383,6 @@ const InstructorCoursesIndexRoute = InstructorCoursesIndexRouteImport.update({
   path: '/courses/',
   getParentRoute: () => InstructorRoute,
 } as any)
-const InstructorCoursesNewRoute = InstructorCoursesNewRouteImport.update({
-  id: '/courses/new',
-  path: '/courses/new',
-  getParentRoute: () => InstructorRoute,
-} as any)
 const DashboardCoursesCourseIdRoute =
   DashboardCoursesCourseIdRouteImport.update({
     id: '/$courseId',
@@ -459,7 +453,6 @@ export interface FileRoutesByFullPath {
   '/library/': typeof LibraryIndexRoute
   '/partner/': typeof PartnerIndexRoute
   '/dashboard/courses/$courseId': typeof DashboardCoursesCourseIdRoute
-  '/instructor/courses/new': typeof InstructorCoursesNewRoute
   '/instructor/courses/': typeof InstructorCoursesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -519,7 +512,6 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryIndexRoute
   '/partner': typeof PartnerIndexRoute
   '/dashboard/courses/$courseId': typeof DashboardCoursesCourseIdRoute
-  '/instructor/courses/new': typeof InstructorCoursesNewRoute
   '/instructor/courses': typeof InstructorCoursesIndexRoute
 }
 export interface FileRoutesById {
@@ -586,7 +578,6 @@ export interface FileRoutesById {
   '/library/': typeof LibraryIndexRoute
   '/partner/': typeof PartnerIndexRoute
   '/dashboard/courses/$courseId': typeof DashboardCoursesCourseIdRoute
-  '/instructor/courses/new': typeof InstructorCoursesNewRoute
   '/instructor/courses/': typeof InstructorCoursesIndexRoute
 }
 export interface FileRouteTypes {
@@ -654,7 +645,6 @@ export interface FileRouteTypes {
     | '/library/'
     | '/partner/'
     | '/dashboard/courses/$courseId'
-    | '/instructor/courses/new'
     | '/instructor/courses/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -714,7 +704,6 @@ export interface FileRouteTypes {
     | '/library'
     | '/partner'
     | '/dashboard/courses/$courseId'
-    | '/instructor/courses/new'
     | '/instructor/courses'
   id:
     | '__root__'
@@ -780,7 +769,6 @@ export interface FileRouteTypes {
     | '/library/'
     | '/partner/'
     | '/dashboard/courses/$courseId'
-    | '/instructor/courses/new'
     | '/instructor/courses/'
   fileRoutesById: FileRoutesById
 }
@@ -1235,13 +1223,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstructorCoursesIndexRouteImport
       parentRoute: typeof InstructorRoute
     }
-    '/instructor/courses/new': {
-      id: '/instructor/courses/new'
-      path: '/courses/new'
-      fullPath: '/instructor/courses/new'
-      preLoaderRoute: typeof InstructorCoursesNewRouteImport
-      parentRoute: typeof InstructorRoute
-    }
     '/dashboard/courses/$courseId': {
       id: '/dashboard/courses/$courseId'
       path: '/$courseId'
@@ -1359,7 +1340,6 @@ interface InstructorRouteChildren {
   InstructorScheduleRoute: typeof InstructorScheduleRoute
   InstructorStudentsRoute: typeof InstructorStudentsRoute
   InstructorIndexRoute: typeof InstructorIndexRoute
-  InstructorCoursesNewRoute: typeof InstructorCoursesNewRoute
   InstructorCoursesIndexRoute: typeof InstructorCoursesIndexRoute
 }
 
@@ -1374,7 +1354,6 @@ const InstructorRouteChildren: InstructorRouteChildren = {
   InstructorScheduleRoute: InstructorScheduleRoute,
   InstructorStudentsRoute: InstructorStudentsRoute,
   InstructorIndexRoute: InstructorIndexRoute,
-  InstructorCoursesNewRoute: InstructorCoursesNewRoute,
   InstructorCoursesIndexRoute: InstructorCoursesIndexRoute,
 }
 

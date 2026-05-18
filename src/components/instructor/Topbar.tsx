@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Menu, ChevronDown, User, Settings, LogOut } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useInstructorStore } from "@/stores/instructor-store";
@@ -9,8 +9,36 @@ import { authApi } from "@/lib/auth-api";
 export function InstructorTopbar({ onMenuClick }: { onMenuClick: () => void }) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const announcements = useInstructorStore((s) => s.announcements);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+
+  useEffect(() => {
+    if (announcements.length > 0) {
+      const lastViewed = localStorage.getItem("instructor_last_notif_time");
+      const latestAnn = announcements[0];
+      const latestTime = (latestAnn.date as any)?.seconds ? (latestAnn.date as any).seconds * 1000 : ((latestAnn as any).timestamp ? (latestAnn as any).timestamp * 1000 : Date.now());
+      if (!lastViewed || Number(lastViewed) < latestTime) {
+        setHasUnread(true);
+      } else {
+        setHasUnread(false);
+      }
+    } else {
+      setHasUnread(false);
+    }
+  }, [announcements]);
+
+  const handleOpenNotifs = () => {
+    if (!notifOpen && announcements.length > 0) {
+      const latestAnn = announcements[0];
+      const latestTime = (latestAnn.date as any)?.seconds ? (latestAnn.date as any).seconds * 1000 : ((latestAnn as any).timestamp ? (latestAnn as any).timestamp * 1000 : Date.now());
+      localStorage.setItem("instructor_last_notif_time", latestTime.toString());
+      setHasUnread(false);
+    }
+    setNotifOpen((v) => !v);
+    setProfileOpen(false);
+  };
 
   const handleLogout = async () => {
     try {
@@ -46,15 +74,14 @@ export function InstructorTopbar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="ml-auto flex items-center gap-2">
         <div className="relative">
           <button
-            onClick={() => {
-              setNotifOpen((v) => !v);
-              setProfileOpen(false);
-            }}
+            onClick={handleOpenNotifs}
             className="relative rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+            {hasUnread && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+            )}
           </button>
           {notifOpen && (
             <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-popover shadow-card">
@@ -62,16 +89,21 @@ export function InstructorTopbar({ onMenuClick }: { onMenuClick: () => void }) {
                 <p className="font-display text-sm font-semibold">Notifications</p>
               </div>
               <ul className="max-h-80 divide-y divide-border overflow-auto">
-                {[
-                  { t: "5 new submissions on 'Build a REST API'", s: "10 min ago" },
-                  { t: "New 5★ review on Cloud Engineering with AWS", s: "2 hours ago" },
-                  { t: "12 students enrolled in your course today", s: "Today" },
-                ].map((n, i) => (
-                  <li key={i} className="cursor-pointer p-4 text-sm hover:bg-accent">
-                    <p className="font-medium text-foreground">{n.t}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{n.s}</p>
-                  </li>
-                ))}
+                {announcements.length === 0 ? (
+                  <li className="p-4 text-center text-sm text-muted-foreground">No new notifications</li>
+                ) : (
+                  announcements.slice(0, 5).map((n) => {
+                    const dateVal = (n.date as any)?.seconds ? new Date((n.date as any).seconds * 1000) : (n.date ? new Date(n.date as any) : new Date());
+                    const dateStr = dateVal.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return (
+                      <li key={n.id} className="cursor-pointer p-4 text-sm hover:bg-accent transition">
+                        <p className="font-medium text-foreground">{n.title}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{n.content}</p>
+                        <p className="mt-1 text-[10px] font-bold uppercase text-primary">{dateStr}</p>
+                      </li>
+                    );
+                  })
+                )}
               </ul>
             </div>
           )}
