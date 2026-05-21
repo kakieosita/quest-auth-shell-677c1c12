@@ -44,4 +44,5 @@ export const secondaryApp = getApps().some((firebaseApp) => firebaseApp.name ===
   : initializeApp(firebaseConfig, "Secondary");
   
 export const secondaryAuth = getAuth(secondaryApp);
+export const secondaryDb = getFirestore(secondaryApp);
 export default app;

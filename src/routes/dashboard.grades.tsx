@@ -85,7 +85,7 @@ function DashboardGrades() {
       doc.text(studentName, 45, 62);
 
       doc.setFont("helvetica", "normal");
-      doc.text("Matric Number:", 15, 68);
+      doc.text("Student Reg. No:", 15, 68);
       doc.setFont("helvetica", "bold");
       doc.text(matricNo, 45, 68);
 

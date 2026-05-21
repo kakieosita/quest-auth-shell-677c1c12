@@ -6,6 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { auth } from "@/lib/firebase";
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { updateDoc, doc } from "firebase/firestore";
+import { usersCollection, studentsCollection } from "@/lib/db/collections";
 
 export const Route = createFileRoute("/dashboard/profile")({
   component: Profile,
@@ -28,7 +32,7 @@ function Profile() {
     toast.success("Profile details updated.");
   };
 
-  const handlePwd = (e: React.FormEvent) => {
+  const handlePwd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pwd.current || !pwd.next) {
       setPwdMsg({ type: "error", text: "Please fill in all fields." });
@@ -42,9 +46,28 @@ function Profile() {
       setPwdMsg({ type: "error", text: "Passwords don't match." });
       return;
     }
-    setPwdMsg({ type: "success", text: "Password updated successfully." });
-    setPwd({ current: "", next: "", confirm: "" });
-    setTimeout(() => setPwdMsg(null), 2500);
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.email) throw new Error("No authenticated user found.");
+      
+      const cred = EmailAuthProvider.credential(currentUser.email, pwd.current);
+      await reauthenticateWithCredential(currentUser, cred);
+      await updatePassword(currentUser, pwd.next);
+      
+      // Update portalPassword in Firestore for admin reference
+      if (user?.id) {
+        await updateDoc(doc(usersCollection, user.id), { portalPassword: pwd.next });
+        await updateDoc(doc(studentsCollection, user.id), { portalPassword: pwd.next }).catch(() => {});
+      }
+
+      setPwdMsg({ type: "success", text: "Password updated successfully." });
+      setPwd({ current: "", next: "", confirm: "" });
+      setTimeout(() => setPwdMsg(null), 2500);
+    } catch (err: any) {
+      console.error(err);
+      setPwdMsg({ type: "error", text: err.message || "Failed to update password. Check current password." });
+    }
   };
 
   return (

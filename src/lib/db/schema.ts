@@ -24,6 +24,7 @@ export interface User {
   phoneNumber?: string;
   phone?: string;
   address?: string;
+  portalPassword?: string;
   matricNo?: string;
   joinedAt?: Timestamp;
   location?: string;
@@ -211,4 +212,25 @@ export interface Attendance {
   instructorId: string;
   status: "present" | "absent";
   date: Timestamp;
+}
+
+export interface PendingEnrollment {
+  id?: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  address: string;
+  age: number;
+  gender: string;
+  nextOfKin: string;
+  nextOfKinPhone: string;
+  programId: string;
+  programName: string;
+  tier: string;
+  amount: number;
+  paymentMethod: "bank_transfer" | "paystack";
+  receiptUrl?: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
 }

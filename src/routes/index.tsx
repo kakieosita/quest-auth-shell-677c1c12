@@ -42,6 +42,12 @@ export const Route = createFileRoute("/")({
 
 const screens = [
   {
+    to: "/enroll" as const,
+    icon: Sparkles,
+    title: "Direct Enrollment",
+    description: "Settle program fees with Paystack & auto-generate student credentials.",
+  },
+  {
     to: "/login" as const,
     icon: LogIn,
     title: "Sign in",
@@ -108,6 +114,9 @@ function Index() {
           <Link to="/library" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block">
             E-Library
           </Link>
+          <Link to="/enroll" className="hidden text-sm font-semibold text-purple-400 hover:text-purple-300 sm:block">
+            Enroll & Pay
+          </Link>
           <Link to="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block">
             Sign in
           </Link>
@@ -127,9 +136,14 @@ function Index() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5 text-primary" /> Auth UI Kit
-          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-5">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5 text-primary" /> Auth UI Kit
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-950/40 px-3 py-1 text-xs font-medium text-purple-300 backdrop-blur shadow-glow animate-pulse">
+              💳 Paystack Secure Checkout Portal Active
+            </span>
+          </div>
           <h1 className="mt-5 font-display text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
             A modern auth experience<br />
             <span className="bg-gradient-primary bg-clip-text text-transparent">
@@ -137,8 +151,7 @@ function Index() {
             </span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
-            Five fully-built screens with form validation, loading states, password strength,
-            social login, and accessible inputs — ready to wire to your backend.
+            Six fully-built pages including dynamic **Paystack Checkout & Automated Student Credentialing**, completed forms validation, loading states, password strength, social logins, and accessible inputs.
           </p>
         </motion.section>
 

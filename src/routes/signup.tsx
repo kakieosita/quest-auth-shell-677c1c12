@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect } from "react";
-import { Mail, User, GraduationCap, Briefcase } from "lucide-react";
+import { Mail, User, GraduationCap, Briefcase, Sparkles, ArrowRight } from "lucide-react";
 import { onSnapshot } from "firebase/firestore";
 import { programsCollection } from "@/lib/db/collections";
 import { AuthLayout } from "@/components/auth/AuthLayout";
@@ -122,6 +122,23 @@ function SignupPage() {
         </span>
       }
     >
+      {/* Dynamic Professional Program Banner */}
+      <div className="bg-purple-950/20 rounded-xl border border-purple-500/20 p-4 mb-4 text-left shadow-soft flex items-start gap-3">
+        <Sparkles className="h-5 w-5 text-purple-400 shrink-0 mt-0.5 animate-pulse" />
+        <div className="space-y-1">
+          <h4 className="text-xs font-bold text-slate-200">Enrolling in a Professional Program?</h4>
+          <p className="text-[10px] text-slate-400 leading-normal">
+            Skip manual password creation! Settle tuition fees with **Paystack** to dynamically receive your registration credentials in seconds.
+          </p>
+          <Link
+            to="/enroll"
+            className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-purple-400 hover:text-purple-300 transition"
+          >
+            Go to Direct Program Enrollment <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {serverError && <InlineAlert variant="error" message={serverError} />}
 

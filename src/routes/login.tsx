@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
-import { Mail } from "lucide-react";
+import { Mail, Sparkles } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormField } from "@/components/auth/FormField";
 import { PasswordField } from "@/components/auth/PasswordField";
@@ -128,6 +128,17 @@ function LoginPage() {
           disabled={loadingGoogle}
         />
       </form>
+
+      {/* Paystack Enrolled Student Banner */}
+      <div className="bg-purple-950/20 rounded-xl border border-purple-500/20 p-4 mt-4 text-left shadow-soft flex items-start gap-3">
+        <Sparkles className="h-5 w-5 text-purple-400 shrink-0 mt-0.5 animate-pulse" />
+        <div className="space-y-1">
+          <h4 className="text-xs font-bold text-slate-200">Newly Enrolled via Paystack?</h4>
+          <p className="text-[10px] text-slate-400 leading-normal">
+            Use the <span className="font-semibold text-slate-200">Student Reg. No (or Email)</span> and the generated <span className="font-semibold text-slate-200">Password</span> sent to your email simulation box to sign in immediately.
+          </p>
+        </div>
+      </div>
 
       {/* Cross-portal links */}
       <div className="mt-6 rounded-xl border border-border bg-muted/40 px-4 py-3 space-y-2">

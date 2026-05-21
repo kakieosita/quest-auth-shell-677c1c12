@@ -510,6 +510,10 @@ function AdminUsers() {
                 <Input disabled value={editingUser.email} />
               </div>
               <div className="space-y-2">
+                <Label>Current Password (Read-only)</Label>
+                <Input disabled value={editingUser.portalPassword || "N/A"} />
+              </div>
+              <div className="space-y-2">
                 <Label>Role</Label>
                 <Select 
                   value={editFormData.role} 

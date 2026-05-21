@@ -15,6 +15,7 @@ import {
   Announcement,
   Attendance
 } from "./schema";
+import type { PendingEnrollment } from "./schema";
 
 // Helper to create a typed collection reference
 const createCollection = <T = DocumentData>(collectionName: string) => {
@@ -43,3 +44,4 @@ export const attendanceCollection = createCollection<Attendance>("attendance");
 export const forumPostsCollection = createCollection<any>("forumPosts");
 export const forumRepliesCollection = createCollection<any>("forumReplies");
 export const messagesCollection = createCollection<any>("messages");
+export const pendingEnrollmentsCollection = createCollection<PendingEnrollment>("pendingEnrollments");
