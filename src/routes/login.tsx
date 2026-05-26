@@ -16,8 +16,8 @@ import { authApi } from "@/lib/auth-api";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign in — LumenEd" },
-      { name: "description", content: "Sign in to your LumenEd learning account." },
+      { title: "Sign in — Upskill School of Technology" },
+      { name: "description", content: "Sign in to your Upskill School of Technology learning account." },
     ],
   }),
   component: LoginPage,
@@ -71,9 +71,9 @@ function LoginPage() {
       subtitle="Sign in to keep learning where you left off."
       footer={
         <span className="text-muted-foreground">
-          New to UST?{" "}
-          <Link to="/signup" className="font-semibold text-primary hover:underline">
-            Create an account
+          Ready to join UST?{" "}
+          <Link to="/enroll" className="font-semibold text-primary hover:underline">
+            Enroll & Pay
           </Link>
         </span>
       }

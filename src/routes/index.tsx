@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   LogIn,
-  UserPlus,
   KeyRound,
   ShieldCheck,
   MailCheck,
@@ -22,6 +21,8 @@ export const Route = createFileRoute("/")({
     if (initialized && user) {
       throw redirect({ to: authApi.getDashboardRoute(user.role) });
     }
+
+    throw redirect({ to: "/login" });
   },
   head: () => ({
     meta: [
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Upskill School of Technology — Owerri" },
       {
         property: "og:description",
-        content: "Sign up as a student or instructor and start learning today.",
+        content: "Sign in or enroll in an Upskill School of Technology program.",
       },
     ],
   }),
@@ -52,12 +53,6 @@ const screens = [
     icon: LogIn,
     title: "Sign in",
     description: "Returning learners and instructors.",
-  },
-  {
-    to: "/signup" as const,
-    icon: UserPlus,
-    title: "Create account",
-    description: "Join as a student or instructor.",
   },
   {
     to: "/forgot-password" as const,
@@ -121,10 +116,10 @@ function Index() {
             Sign in
           </Link>
           <Link
-            to="/signup"
+            to="/enroll"
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft transition hover:shadow-glow hover:-translate-y-0.5"
           >
-            Get started <ArrowRight className="h-4 w-4" />
+            Enroll & Pay <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </header>

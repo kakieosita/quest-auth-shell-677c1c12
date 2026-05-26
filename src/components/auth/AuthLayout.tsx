@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Sparkles, BookOpen, Users } from "lucide-react";
+import { CreditCard, Sparkles, BookOpen, Users } from "lucide-react";
 import upskillLogo from "@/assets/upskill-logo.png";
 
 interface AuthLayoutProps {
@@ -18,7 +18,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
         <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary-glow/40 blur-3xl" />
         <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-mint/30 blur-3xl" />
 
-        <Link to="/" className="relative flex items-center gap-3 font-display text-xl font-bold">
+        <Link to="/login" className="relative flex items-center gap-3 font-display text-xl font-bold">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white p-1.5 shadow-soft">
             <img src={upskillLogo} alt="Upskill School of Technology" className="h-full w-full object-contain" />
           </div>
@@ -56,14 +56,23 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
 
       {/* Right — form panel */}
       <div className="flex flex-col bg-gradient-soft">
-        <div className="flex items-center justify-between p-6 lg:hidden">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold">
+        <header className="flex items-center justify-between p-6">
+          <Link to="/login" className="flex items-center gap-2 font-display font-bold lg:hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 shadow-soft">
               <img src={upskillLogo} alt="Upskill" className="h-full w-full object-contain" />
             </div>
             Upskill
           </Link>
-        </div>
+          <nav aria-label="Account menu" className="ml-auto flex items-center gap-2">
+            <Link
+              to="/enroll"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card/80 px-3 text-sm font-semibold text-foreground shadow-soft transition hover:border-primary/50 hover:text-primary"
+            >
+              <CreditCard className="h-4 w-4" />
+              Enroll & Pay
+            </Link>
+          </nav>
+        </header>
 
         <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
           <motion.div
