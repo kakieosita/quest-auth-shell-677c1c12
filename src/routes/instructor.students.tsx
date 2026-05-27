@@ -4,9 +4,6 @@ import { Search, ArrowUpDown, User, Download, FileText, FileSpreadsheet, X, Chec
 import { useInstructorStore } from "@/stores/instructor-store";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import Papa from "papaparse";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 export const Route = createFileRoute("/instructor/students")({
   component: StudentsPage,
@@ -51,7 +48,9 @@ function StudentsPage() {
     }
   };
 
-  const handleExport = (type: 'excel' | 'pdf') => {
+  const handleExport = async (type: 'excel' | 'pdf') => {
+    if (import.meta.env.SSR) return;
+
     toast.success(`Generating ${type.toUpperCase()} report...`, {
       description: `The student roster for ${courseFilter === 'all' ? 'all courses' : 'selected course'} is being prepared.`
     });
@@ -70,16 +69,24 @@ function StudentsPage() {
 
     const filename = `student_roster_${new Date().toISOString().split("T")[0]}`;
 
-    if (type === "excel") {
-      const csv = Papa.unparse(dataToExport);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", `${filename}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else if (type === "pdf") {
+    try {
+      if (type === "excel") {
+        const { default: Papa } = await import("papaparse");
+        const csv = Papa.unparse(dataToExport);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", `${filename}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
       const doc = new jsPDF();
       doc.text("Student Roster", 14, 15);
       autoTable(doc, {
@@ -97,6 +104,8 @@ function StudentsPage() {
         headStyles: { fillColor: [99, 102, 241] },
       });
       doc.save(`${filename}.pdf`);
+    } catch (error) {
+      toast.error("Export failed. Please try again.");
     }
   };
 
@@ -319,4 +328,3 @@ function StudentsPage() {
     </div>
   );
 }
-

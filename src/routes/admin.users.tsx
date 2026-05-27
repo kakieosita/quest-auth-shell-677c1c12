@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
-import { Plus, Search, MoreHorizontal, Download, Clock, Filter, Trash, UploadCloud, Edit } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Plus, Search, MoreHorizontal, Download, Clock, Trash, UploadCloud, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,10 +23,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Papa from "papaparse";
-import { db, secondaryAuth } from "@/lib/firebase";
+import { secondaryAuth } from "@/lib/firebase";
 import { usersCollection } from "@/lib/db/collections";
-import { onSnapshot, doc, setDoc, deleteDoc, updateDoc, Timestamp, query, orderBy, addDoc } from "firebase/firestore";
+import { onSnapshot, doc, setDoc, deleteDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { User, UserRole } from "@/lib/db/schema";
@@ -39,6 +38,45 @@ import { authApi } from "@/lib/auth-api";
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
 });
+
+const normalizeEmail = (email?: string | null) => email?.trim().toLowerCase() || "";
+
+const getTimestampMillis = (value: unknown) => {
+  if (!value) return 0;
+
+  if (typeof value === "object") {
+    const timestamp = value as { toMillis?: () => number; toDate?: () => Date };
+
+    if (typeof timestamp.toMillis === "function") {
+      return timestamp.toMillis();
+    }
+
+    if (typeof timestamp.toDate === "function") {
+      return timestamp.toDate().getTime();
+    }
+  }
+
+  const parsed = new Date(value as string | number | Date).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getUserFreshness = (user: User) =>
+  Math.max(getTimestampMillis(user.updatedAt), getTimestampMillis(user.createdAt));
+
+const dedupeUsersByEmail = (users: User[]) => {
+  const usersByEmail = new Map<string, User>();
+
+  users.forEach((user) => {
+    const key = normalizeEmail(user.email) || `id:${user.id}`;
+    const existingUser = usersByEmail.get(key);
+
+    if (!existingUser || getUserFreshness(user) > getUserFreshness(existingUser)) {
+      usersByEmail.set(key, user);
+    }
+  });
+
+  return Array.from(usersByEmail.values());
+};
 
 function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -83,24 +121,39 @@ function AdminUsers() {
     return () => unsubscribe();
   }, []);
 
-  const filteredUsers = users.filter(
-    (u) => {
+  const knownUserEmails = useMemo(
+    () => new Set(users.map((user) => normalizeEmail(user.email)).filter(Boolean)),
+    [users]
+  );
+
+  const uniqueUsers = useMemo(() => dedupeUsersByEmail(users), [users]);
+
+  const filteredUsers = useMemo(
+    () => uniqueUsers.filter((u) => {
       const matchesTab = activeTab === "all" || u.role === activeTab;
       const matchesSearch = (u.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                              u.email.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesTab && matchesSearch;
-    }
+    }),
+    [activeTab, searchQuery, uniqueUsers]
   );
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Starting handleAddUser...", formData);
+    const normalizedEmail = normalizeEmail(formData.email);
+
+    if (knownUserEmails.has(normalizedEmail)) {
+      toast.error("A user with this email already exists.");
+      return;
+    }
+
     setIsSubmitting(true);
     const toastId = toast.loading("Creating user...");
     try {
       console.log("Calling createUserWithEmailAndPassword with secondaryAuth...");
       // 1. Create in Firebase Auth (Secondary app to avoid logout)
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, formData.password);
       console.log("Auth user created:", userCredential.user.uid);
       const uid = userCredential.user.uid;
 
@@ -110,7 +163,7 @@ function AdminUsers() {
       // 3. Save to Firestore first to ensure user exists even if upload fails
       const newUser: User = {
         id: uid,
-        email: formData.email,
+        email: normalizedEmail,
         displayName: formData.name,
         photoURL: null,
         role: formData.role,
@@ -213,12 +266,24 @@ function AdminUsers() {
     }
   };
 
-  const handleBulkImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBulkImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (import.meta.env.SSR) return;
+
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsImporting(true);
     setImportProgress(0);
+
+    let Papa: typeof import("papaparse").default;
+    try {
+      ({ default: Papa } = await import("papaparse"));
+    } catch (error: any) {
+      toast.error("Failed to load CSV parser. Please try again.");
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     Papa.parse(file, {
       header: true,
@@ -227,27 +292,37 @@ function AdminUsers() {
         const rows = results.data as any[];
         let successCount = 0;
         let errorCount = 0;
+        let duplicateCount = 0;
+        const seenEmails = new Set(knownUserEmails);
 
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           const name = row.Name || row.name;
           const email = row.Email || row.email;
+          const normalizedEmail = normalizeEmail(email);
           const role = (row.Role || row.role || (activeTab === "all" ? "student" : activeTab)).toLowerCase() as UserRole;
           
-          if (!name || !email) {
+          if (!name || !normalizedEmail) {
             errorCount++;
             continue;
           }
 
+          if (seenEmails.has(normalizedEmail)) {
+            duplicateCount++;
+            continue;
+          }
+
+          seenEmails.add(normalizedEmail);
+
           try {
             // Password defaults to Welcome123!
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, "Welcome123!");
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, "Welcome123!");
             const uid = userCredential.user.uid;
             await updateProfile(userCredential.user, { displayName: name });
 
             const newUser: User = {
               id: uid,
-              email,
+              email: normalizedEmail,
               displayName: name,
               photoURL: null,
               role,
@@ -259,7 +334,7 @@ function AdminUsers() {
             await setDoc(doc(usersCollection, uid), newUser);
             successCount++;
           } catch (error) {
-            console.error(`Error importing ${email}:`, error);
+            console.error(`Error importing ${normalizedEmail}:`, error);
             errorCount++;
           }
 
@@ -268,7 +343,7 @@ function AdminUsers() {
 
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        toast.success(`Import complete! ${successCount} added, ${errorCount} failed.`);
+        toast.success(`Import complete! ${successCount} added, ${duplicateCount} duplicates skipped, ${errorCount} failed.`);
       },
       error: (error) => {
         toast.error("Failed to parse CSV file: " + error.message);
